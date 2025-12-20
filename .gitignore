@@ -1,0 +1,68 @@
+# =========================
+# .NET / Visual Studio
+# =========================
+
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Build outputs
+# =========================
+
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ARM/
+ARM64/
+
+# =========================
+# Rider / VS Code
+# =========================
+
+.idea/
+.vscode/
+
+# =========================
+# MAUI / Blazor specific
+# =========================
+
+.platforms/
+MauiProgram.cs.user
+
+# =========================
+# SQLite database files
+# =========================
+
+*.db
+*.db-shm
+*.db-wal
+
+# =========================
+# OS generated files
+# =========================
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# Temporary files
+# =========================
+
+*.tmp
+*.temp
+*.bak

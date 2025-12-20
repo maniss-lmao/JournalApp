@@ -1,0 +1,98 @@
+﻿using JournalApp.Data;
+using JournalApp.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace JournalApp.Services;
+
+public class JournalService
+{
+    private readonly AppDbContext _db;
+
+    public JournalService(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    // Get entry for a specific date
+    public async Task<JournalEntry?> GetByDateAsync(DateOnly date)
+    {
+        return await _db.JournalEntries
+            .FirstOrDefaultAsync(e => e.EntryDate == date);
+    }
+
+    // Create OR update an entry (one per day)
+    public async Task SaveAsync(JournalEntry entry)
+    {
+        var existing = await GetByDateAsync(entry.EntryDate);
+
+        if (existing == null)
+        {
+            // CREATE
+            entry.CreatedAt = DateTime.Now;
+            entry.UpdatedAt = DateTime.Now;
+
+            _db.JournalEntries.Add(entry);
+        }
+        else
+        {
+            // UPDATE
+            existing.Title = entry.Title;
+            existing.Content = entry.Content;
+
+            existing.PrimaryMood = entry.PrimaryMood;
+            existing.SecondaryMood1 = entry.SecondaryMood1;
+            existing.SecondaryMood2 = entry.SecondaryMood2;
+
+            //  Tags update (important)
+            existing.Tags = entry.Tags;
+
+            existing.UpdatedAt = DateTime.Now;
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    // Delete entry by date
+    public async Task DeleteAsync(DateOnly date)
+    {
+        var entry = await GetByDateAsync(date);
+        if (entry != null)
+        {
+            _db.JournalEntries.Remove(entry);
+            await _db.SaveChangesAsync();
+        }
+    }
+
+    // Get all entries (used for search/results)
+    public async Task<List<JournalEntry>> GetAllAsync()
+    {
+        return await _db.JournalEntries
+            .OrderByDescending(e => e.EntryDate)
+            .ToListAsync();
+    }
+
+    //  Feature 4: Search by title/content + optional date range
+    public async Task<List<JournalEntry>> SearchAsync(string? query, DateOnly? fromDate, DateOnly? toDate)
+    {
+        var q = _db.JournalEntries.AsQueryable();
+
+        if (fromDate.HasValue)
+            q = q.Where(e => e.EntryDate >= fromDate.Value);
+
+        if (toDate.HasValue)
+            q = q.Where(e => e.EntryDate <= toDate.Value);
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var term = query.Trim();
+
+            q = q.Where(e =>
+                EF.Functions.Like(e.Title, $"%{term}%") ||
+                EF.Functions.Like(e.Content, $"%{term}%"));
+        }
+
+        return await q
+            .OrderByDescending(e => e.EntryDate)
+            .ToListAsync();
+    }
+}

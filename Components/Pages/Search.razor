@@ -1,0 +1,142 @@
+﻿@page "/search"
+@using JournalApp.Models
+@inject JournalApp.Services.JournalService JournalService
+
+<h3>Search Journal Entries</h3>
+
+<div style="max-width:800px">
+    <label>Search (Title or Content)</label>
+    <input class="form-control" placeholder="Type a keyword..." @bind="Query" />
+
+    <br />
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div>
+            <label>From (optional)</label><br />
+            <input class="form-control" type="date" @bind="FromDate" />
+        </div>
+
+        <div>
+            <label>To (optional)</label><br />
+            <input class="form-control" type="date" @bind="ToDate" />
+        </div>
+    </div>
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="RunSearch">Search</button>
+    <button class="btn btn-secondary" style="margin-left:10px" @onclick="Clear">Clear</button>
+
+    <br /><br />
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert @MessageClass" role="alert">
+            @Message
+        </div>
+    }
+
+    @if (Results.Count > 0)
+    {
+        <h5>Results (@Results.Count)</h5>
+
+        <div class="list-group">
+            @foreach (var e in Results)
+            {
+                <div class="list-group-item">
+                    <div style="display:flex; justify-content:space-between; gap:12px;">
+                        <strong>@e.Title</strong>
+                        <span>@e.EntryDate.ToString("yyyy-MM-dd")</span>
+                    </div>
+
+                    <div style="margin-top:6px; font-size:0.95rem;">
+                        <em>Mood:</em> @e.PrimaryMood
+                        @if (!string.IsNullOrWhiteSpace(e.SecondaryMood1) || !string.IsNullOrWhiteSpace(e.SecondaryMood2))
+                        {
+                            <span>
+                                | <em>Secondary:</em>
+                                @e.SecondaryMood1
+                                @(!string.IsNullOrWhiteSpace(e.SecondaryMood2) ? ", " + e.SecondaryMood2 : "")
+                            </span>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(e.Tags))
+                    {
+                        <div style="margin-top:6px;">
+                            <em>Tags:</em> @e.Tags
+                        </div>
+                    }
+
+                    <div style="margin-top:8px;">
+                        @ShortText(e.Content, 160)
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p>No results yet. Try searching above.</p>
+    }
+</div>
+
+@code {
+    private string Query = string.Empty;
+
+    
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+
+    private List<JournalEntry> Results = new();
+
+    private string? Message;
+    private string MessageClass = "alert-info";
+
+    private async Task RunSearch()
+    {
+        Message = null;
+
+        
+        DateOnly? from = FromDate.HasValue ? DateOnly.FromDateTime(FromDate.Value) : null;
+        DateOnly? to = ToDate.HasValue ? DateOnly.FromDateTime(ToDate.Value) : null;
+
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+        {
+            MessageClass = "alert-danger";
+            Message = "From date cannot be after To date.";
+            Results.Clear();
+            return;
+        }
+
+        Results = await JournalService.SearchAsync(Query, from, to);
+
+        if (Results.Count == 0)
+        {
+            MessageClass = "alert-warning";
+            Message = "No matching entries found.";
+        }
+        else
+        {
+            MessageClass = "alert-success";
+            Message = $"Found {Results.Count} matching entries.";
+        }
+    }
+
+    private void Clear()
+    {
+        Query = string.Empty;
+        FromDate = null;
+        ToDate = null;
+        Results.Clear();
+        Message = null;
+        MessageClass = "alert-info";
+    }
+
+    private static string ShortText(string text, int max)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        var cleaned = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        return cleaned.Length <= max ? cleaned : cleaned.Substring(0, max) + "...";
+    }
+}

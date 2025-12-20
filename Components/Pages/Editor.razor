@@ -1,0 +1,231 @@
+﻿@page "/"
+@page "/editor"
+@page "/editor/{dateString}"
+@using JournalApp.Models
+@inject JournalApp.Services.JournalService JournalService
+
+<h3>Today's Journal Entry</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @MessageClass" role="alert" style="max-width:600px">
+        @Message
+    </div>
+}
+
+<div style="max-width:600px">
+    <label>Title</label><br />
+    <input class="form-control" @bind="Entry.Title" />
+
+    <br />
+
+    <label>Content</label><br />
+    <textarea class="form-control" rows="6" @bind="Entry.Content"></textarea>
+
+    <br />
+
+    <label>Primary Mood <span style="color:red">*</span></label><br />
+    <select class="form-control" @bind="Entry.PrimaryMood">
+        <option value="">-- Select Primary Mood --</option>
+        @foreach (var m in MoodOptions)
+        {
+            <option value="@m">@m</option>
+        }
+    </select>
+
+    <br />
+
+    <label>Secondary Mood 1 (optional)</label><br />
+    <select class="form-control" @bind="Entry.SecondaryMood1">
+        <option value="">-- None --</option>
+        @foreach (var m in MoodOptions)
+        {
+            <option value="@m">@m</option>
+        }
+    </select>
+
+    <br />
+
+    <label>Secondary Mood 2 (optional)</label><br />
+    <select class="form-control" @bind="Entry.SecondaryMood2">
+        <option value="">-- None --</option>
+        @foreach (var m in MoodOptions)
+        {
+            <option value="@m">@m</option>
+        }
+    </select>
+
+    <br />
+
+    <label>Tags</label>
+    <div>
+        @foreach (var tag in PredefinedTags)
+        {
+            <label class="tag-pill @(SelectedTags.Contains(tag) ? "tag-pill-selected" : "")">
+                <input class="tag-hidden"
+                       type="checkbox"
+                       checked="@SelectedTags.Contains(tag)"
+                       @onchange="() => ToggleTag(tag)" />
+                @tag
+            </label>
+        }
+    </div>
+
+    <br />
+
+    <label>Add custom tag</label>
+    <input class="form-control"
+           placeholder="e.g. Gym, Family"
+           @bind="CustomTag" />
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="SaveEntry">
+        Save
+    </button>
+
+    <button class="btn btn-danger" style="margin-left:10px"
+            @onclick="DeleteEntry">
+        Delete
+    </button>
+</div>
+
+@code {
+    
+    [Parameter] public string? dateString { get; set; }
+
+    private JournalEntry Entry = new();
+    private string? Message;
+    private string MessageClass = "alert-success";
+
+    private readonly List<string> MoodOptions = new()
+    {
+        "Happy", "Calm", "Grateful", "Focused",
+        "Okay",
+        "Sad", "Stressed", "Anxious", "Angry"
+    };
+
+    private List<string> PredefinedTags = new()
+    {
+        "Work", "Study", "Health", "Family", "Travel"
+    };
+
+    private HashSet<string> SelectedTags = new();
+    private string CustomTag = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+       
+        DateOnly targetDate;
+
+        if (!string.IsNullOrWhiteSpace(dateString) && DateOnly.TryParse(dateString, out var parsed))
+            targetDate = parsed;
+        else
+            targetDate = DateOnly.FromDateTime(DateTime.Now);
+
+        var existing = await JournalService.GetByDateAsync(targetDate);
+
+        if (existing != null)
+        {
+            Entry = existing;
+
+            if (!string.IsNullOrWhiteSpace(Entry.Tags))
+            {
+                SelectedTags = Entry.Tags
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(t => t.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        else
+        {
+            Entry.EntryDate = targetDate;
+        }
+    }
+
+    private void ToggleTag(string tag)
+    {
+        if (!SelectedTags.Add(tag))
+            SelectedTags.Remove(tag);
+    }
+
+    private async Task SaveEntry()
+    {
+        // Basic required fields
+        if (string.IsNullOrWhiteSpace(Entry.Title))
+        {
+            MessageClass = "alert-danger";
+            Message = "Title is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Entry.Content))
+        {
+            MessageClass = "alert-danger";
+            Message = "Content cannot be empty.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Entry.PrimaryMood))
+        {
+            MessageClass = "alert-danger";
+            Message = "Primary mood is required.";
+            return;
+        }
+
+        // Secondary mood validation (optional but must not duplicate)
+        var p = Entry.PrimaryMood?.Trim();
+        var s1 = string.IsNullOrWhiteSpace(Entry.SecondaryMood1) ? null : Entry.SecondaryMood1.Trim();
+        var s2 = string.IsNullOrWhiteSpace(Entry.SecondaryMood2) ? null : Entry.SecondaryMood2.Trim();
+
+        if (s1 != null && string.Equals(s1, p, StringComparison.OrdinalIgnoreCase))
+        {
+            MessageClass = "alert-danger";
+            Message = "Secondary Mood 1 cannot be the same as Primary Mood.";
+            return;
+        }
+
+        if (s2 != null && string.Equals(s2, p, StringComparison.OrdinalIgnoreCase))
+        {
+            MessageClass = "alert-danger";
+            Message = "Secondary Mood 2 cannot be the same as Primary Mood.";
+            return;
+        }
+
+        if (s1 != null && s2 != null && string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase))
+        {
+            MessageClass = "alert-danger";
+            Message = "Secondary Mood 1 and Secondary Mood 2 cannot be the same.";
+            return;
+        }
+
+        // Tags: add custom tag if provided
+        if (!string.IsNullOrWhiteSpace(CustomTag))
+        {
+            SelectedTags.Add(CustomTag.Trim());
+        }
+
+        Entry.Tags = string.Join(", ", SelectedTags);
+
+        await JournalService.SaveAsync(Entry);
+        MessageClass = "alert-success";
+        Message = "Journal entry saved successfully.";
+        CustomTag = string.Empty;
+    }
+
+    private async Task DeleteEntry()
+    {
+        await JournalService.DeleteAsync(Entry.EntryDate);
+
+        Entry = new JournalEntry
+        {
+            EntryDate = DateOnly.FromDateTime(DateTime.Now)
+        };
+
+        SelectedTags.Clear();
+        CustomTag = string.Empty;
+
+        MessageClass = "alert-success";
+        Message = "Journal entry deleted.";
+    }
+}
