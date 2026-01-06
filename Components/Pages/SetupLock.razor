@@ -1,0 +1,77 @@
+﻿@page "/setup"
+@inject JournalApp.Services.LockService LockService
+@inject JournalApp.Services.AppState AppState
+@inject NavigationManager Nav
+
+<h3>Set up your Journal Lock</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert alert-danger" style="max-width:450px">@Message</div>
+}
+
+<div style="max-width:450px">
+    <label>Username</label>
+    <input class="form-control" @bind="Username" />
+
+    <br />
+
+    <label>PIN / Password</label>
+    <input class="form-control" type="password" @bind="Pin" />
+
+    <br />
+
+    <label>Confirm PIN / Password</label>
+    <input class="form-control" type="password" @bind="ConfirmPin" />
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="Save">
+        Save & Continue
+    </button>
+</div>
+
+@code {
+    private string Username = "";
+    private string Pin = "";
+    private string ConfirmPin = "";
+    private string? Message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If already set, go to unlock instead of setup
+        if (await LockService.HasPinAsync())
+        {
+            Nav.NavigateTo("/unlock", true);
+        }
+    }
+
+    private async Task Save()
+    {
+        Message = null;
+
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            Message = "Username is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Pin) || Pin.Length < 4)
+        {
+            Message = "PIN must be at least 4 characters.";
+            return;
+        }
+
+        if (Pin != ConfirmPin)
+        {
+            Message = "PIN and Confirm PIN do not match.";
+            return;
+        }
+
+        LockService.SaveUsername(Username.Trim());
+        await LockService.SavePinAsync(Pin);
+
+        AppState.SetUnlocked(Username.Trim());
+        Nav.NavigateTo("/editor", true);
+    }
+}

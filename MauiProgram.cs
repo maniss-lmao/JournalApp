@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using JournalApp.Data;
-using JournalApp.Services;   
+using JournalApp.Services;
 
 namespace JournalApp;
 
@@ -20,13 +20,13 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
 
-        //  SQLite + EF Core setup
         var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db");
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 
-        //  REGISTER JournalService ()
         builder.Services.AddScoped<JournalService>();
+        builder.Services.AddSingleton<AppState>();
+        builder.Services.AddSingleton<LockService>();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
@@ -35,7 +35,6 @@ public static class MauiProgram
 
         var app = builder.Build();
 
-        //  Create database + tables on app startup
         using (var scope = app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -1,0 +1,80 @@
+﻿@page "/unlock"
+@inject JournalApp.Services.LockService LockService
+@inject JournalApp.Services.AppState AppState
+@inject NavigationManager Nav
+
+<h3>Unlock Journal</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @MessageClass" style="max-width:450px">@Message</div>
+}
+
+<div style="max-width:450px">
+    @if (!string.IsNullOrWhiteSpace(Username))
+    {
+        <p>Welcome, <b>@Username</b></p>
+    }
+
+    <label>Enter PIN / Password</label>
+    <input class="form-control" type="password" @bind="Pin" />
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="Unlock_user">
+        Unlock
+    </button>
+
+    <button class="btn btn-danger" style="margin-left:10px" @onclick="ResetAll">
+        Reset (Forgot PIN)
+    </button>
+</div>
+
+@code {
+    private string Username = "";
+    private string Pin = "";
+    private string? Message;
+    private string MessageClass = "alert-danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If there is no PIN yet, go to setup
+        if (!await LockService.HasPinAsync())
+        {
+            Nav.NavigateTo("/setup", true);
+            return;
+        }
+
+        Username = LockService.GetUsername();
+    }
+
+    private async Task Unlock_user()
+    {
+        Message = null;
+
+        if (string.IsNullOrWhiteSpace(Pin))
+        {
+            MessageClass = "alert-danger";
+            Message = "PIN is required.";
+            return;
+        }
+
+        var ok = await LockService.VerifyPinAsync(Pin);
+        if (!ok)
+        {
+            MessageClass = "alert-danger";
+            Message = "Incorrect PIN. Try again.";
+            return;
+        }
+
+        AppState.SetUnlocked(string.IsNullOrWhiteSpace(Username) ? "User" : Username);
+        Nav.NavigateTo("/editor", true);
+    }
+
+    private async Task ResetAll()
+    {
+        await LockService.ResetAsync();
+        AppState.Lock();
+        Nav.NavigateTo("/setup", true);
+    }
+}
