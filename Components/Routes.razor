@@ -1,4 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
 @inject NavigationManager Nav
 @inject JournalApp.Services.AppState AppState
 @inject JournalApp.Services.LockService LockService
@@ -13,27 +14,48 @@
 </Router>
 
 @code {
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (firstRender)
+            await EnforceLockAsync();
+    }
 
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await EnforceLockAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EnforceLockAsync()
+    {
         var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
 
-        // Allow only setup/unlock without being unlocked
-        bool isAllowed = path.StartsWith("/setup") || path.StartsWith("/unlock");
+        var isAllowed = path.StartsWith("/setup") || path.StartsWith("/unlock");
 
-        if (!isAllowed)
+        if (isAllowed)
+            return;
+
+        var hasPin = await LockService.HasPinAsync();
+
+        if (!hasPin)
         {
-            // If pin doesn't exist -> setup. Else -> unlock.
-            if (await LockService.HasPinAsync())
-            {
-                if (!AppState.IsUnlocked)
-                    Nav.NavigateTo("/unlock", true);
-            }
-            else
-            {
-                Nav.NavigateTo("/setup", true);
-            }
+            Nav.NavigateTo("/setup", true);
+            return;
         }
+
+        if (!AppState.IsUnlocked)
+        {
+            Nav.NavigateTo("/unlock", true);
+        }
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
     }
 }

@@ -1,0 +1,26 @@
+﻿@inject NavigationManager Nav
+@inject JournalApp.Services.AppState AppState
+@inject JournalApp.Services.LockService LockService
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // run on every navigation / render
+        var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
+
+        bool allowed = path.StartsWith("/setup") || path.StartsWith("/unlock");
+
+        if (allowed) return;
+
+        if (!await LockService.HasPinAsync())
+        {
+            Nav.NavigateTo("/setup", true);
+            return;
+        }
+
+        if (!AppState.IsUnlocked)
+        {
+            Nav.NavigateTo("/unlock", true);
+        }
+    }
+}
