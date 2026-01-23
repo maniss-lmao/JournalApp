@@ -1,0 +1,76 @@
+﻿@page "/calendar"
+@using JournalApp.Models
+@inject JournalApp.Services.JournalService JournalService
+@inject NavigationManager Nav
+
+<h3>Calendar Navigation</h3>
+
+<div style="max-width:600px">
+    <label>Select a date</label>
+    <input class="form-control" type="date" @bind="SelectedDate" />
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="CheckDate">
+        Check / Load
+    </button>
+
+    <button class="btn btn-secondary" style="margin-left:10px" @onclick="OpenEditor">
+        Open Editor
+    </button>
+
+    <br /><br />
+
+    @if (!string.IsNullOrWhiteSpace(StatusMessage))
+    {
+        <div class="alert @StatusClass" style="max-width:600px">
+            @StatusMessage
+        </div>
+    }
+
+    @if (FoundEntry is not null)
+    {
+        <div style="margin-top:10px; max-width:600px">
+            <p><b>Entry found for:</b> @FoundEntry.EntryDate.ToString("yyyy-MM-dd")</p>
+            <p><b>Title:</b> @FoundEntry.Title</p>
+            <p><b>Primary Mood:</b> @FoundEntry.PrimaryMood</p>
+            <p><b>Tags:</b> @FoundEntry.Tags</p>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime SelectedDate = DateTime.Today;
+    private JournalEntry? FoundEntry;
+
+    private string? StatusMessage;
+    private string StatusClass = "alert-info";
+
+    private async Task CheckDate()
+    {
+        FoundEntry = null;
+        StatusMessage = null;
+
+        var dateOnly = DateOnly.FromDateTime(SelectedDate);
+
+        var entry = await JournalService.GetByDateAsync(dateOnly);
+
+        if (entry is null)
+        {
+            StatusClass = "alert-warning";
+            StatusMessage = "No entry found for this date. You can create one by opening the editor.";
+        }
+        else
+        {
+            FoundEntry = entry;
+            StatusClass = "alert-success";
+            StatusMessage = "Entry found. You can open it in the editor.";
+        }
+    }
+
+    private void OpenEditor()
+    {
+        var dateOnly = DateOnly.FromDateTime(SelectedDate);
+        Nav.NavigateTo($"/editor/{dateOnly:yyyy-MM-dd}");
+    }
+}

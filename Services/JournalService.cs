@@ -95,4 +95,23 @@ public class JournalService
             .OrderByDescending(e => e.EntryDate)
             .ToListAsync();
     }
+    public async Task<int> GetCountAsync()
+    {
+        return await _db.JournalEntries.CountAsync();
+    }
+
+    public async Task<List<JournalEntry>> GetPageAsync(int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        return await _db.JournalEntries
+            .OrderByDescending(e => e.EntryDate)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
+
 }
+
+

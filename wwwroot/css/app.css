@@ -148,3 +148,20 @@ label {
     display: none !important;
 }
 
+.journal-table {
+    color: #eaeaf0;
+}
+
+    .journal-table thead th {
+        color: #eaeaf0;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .journal-table tbody td {
+        color: #eaeaf0;
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .journal-table tbody tr:hover {
+        background: rgba(255,255,255,0.04);
+    }
