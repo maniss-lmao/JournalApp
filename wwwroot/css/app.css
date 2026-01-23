@@ -1,5 +1,10 @@
-﻿/* Dark Theme Base (Global)*/
+﻿/* =========================
+   Journal App - app.css
+   (Dark default + Light theme toggle)
+   ========================= */
 
+/* ===== Theme Variables ===== */
+/* Default = Dark */
 :root {
     --bg: #0c0d12;
     --text: #eaeaf0;
@@ -11,14 +16,27 @@
     --accentHover: #6a4df0;
 }
 
+/* Light Theme Overrides */
+.theme-light {
+    --bg: #f5f6fb;
+    --text: #12131a;
+    --muted: rgba(0,0,0,0.65);
+    --panel: rgba(0,0,0,0.04);
+    --panelFocus: rgba(0,0,0,0.06);
+    --border: rgba(0,0,0,0.12);
+    --accent: #4f46e5;
+    --accentHover: #4338ca;
+}
+
+/* ===== Base ===== */
 html, body {
     background: var(--bg);
     color: var(--text);
 }
 
-/* Main layout containers */
 .page {
     background: var(--bg);
+    color: var(--text);
 }
 
 .sidebar {
@@ -34,10 +52,7 @@ html, body {
     padding-top: 24px;
 }
 
-/*
-   Inputs / Textareas / Select
-   */
-
+/* ===== Inputs / Textareas / Select ===== */
 .form-control,
 input.form-control,
 textarea.form-control,
@@ -52,7 +67,6 @@ select.form-control {
     box-shadow: none;
 }
 
-    /* Focus */
     .form-control:focus,
     input.form-control:focus,
     textarea.form-control:focus,
@@ -60,32 +74,27 @@ select.form-control {
         background: var(--panelFocus);
         border-color: rgba(122, 92, 255, 0.60);
         box-shadow: 0 0 0 0.2rem rgba(122, 92, 255, 0.15);
-        color: #ffffff;
+        color: var(--text);
     }
-
 
 select.form-control {
     color-scheme: dark;
     padding-right: 36px;
 }
 
-    
     select.form-control option {
         background-color: #12131a !important;
         color: var(--text) !important;
     }
 
-/* Labels */
+/* ===== Labels ===== */
 label {
     color: var(--muted);
     font-weight: 600;
     margin-bottom: 6px;
 }
 
-/* 
-   Buttons
-   */
-
+/* ===== Buttons ===== */
 .btn {
     border-radius: 12px;
     padding: 10px 18px;
@@ -105,17 +114,13 @@ label {
     border-radius: 12px;
 }
 
-/*Alerts */
-
+/* ===== Alerts ===== */
 .alert {
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.10);
 }
 
-/* 
-   Tag pills
-   */
-
+/* ===== Tag pills ===== */
 .tag-pill {
     display: inline-flex;
     align-items: center;
@@ -144,28 +149,31 @@ label {
 .tag-hidden {
     display: none;
 }
+
 #blazor-error-ui {
     display: none !important;
 }
 
+/* ===== Tables (My Journals) ===== */
 .journal-table {
-    color: #eaeaf0;
+    color: var(--text);
 }
 
     .journal-table thead th {
-        color: #eaeaf0;
+        color: var(--text);
         border-bottom: 1px solid rgba(255,255,255,0.12);
     }
 
     .journal-table tbody td {
-        color: #eaeaf0;
+        color: var(--text);
         border-top: 1px solid rgba(255,255,255,0.08);
     }
 
     .journal-table tbody tr:hover {
         background: rgba(255,255,255,0.04);
     }
-/*/* Calendar page */
+
+/* ===== Calendar ===== */
 .cal-wrap {
     max-width: 1100px;
 }
@@ -196,7 +204,6 @@ label {
     gap: 12px;
 }
 
-/* ✅ IMPORTANT: force buttons to stay dark even if Bootstrap .btn is applied */
 .cal-cell {
     height: 110px;
     border-radius: 14px;
@@ -207,13 +214,11 @@ label {
     padding: 12px;
     cursor: pointer;
     transition: 0.15s ease;
-    /* remove browser/Bootstrap defaults */
     appearance: none;
     -webkit-appearance: none;
     outline: none;
 }
 
-    /* ✅ also block Bootstrap :focus style */
     .cal-cell:focus,
     .cal-cell:focus-visible {
         outline: none !important;
@@ -221,7 +226,6 @@ label {
         border-color: rgba(122, 92, 255, 0.55) !important;
     }
 
-    /* hover */
     .cal-cell:hover {
         background: rgba(255,255,255,0.05) !important;
         border-color: rgba(255,255,255,0.16);
@@ -233,7 +237,6 @@ label {
     cursor: default;
 }
 
-/* bigger day number */
 .cal-daynum {
     font-size: 22px;
     font-weight: 700;
@@ -250,7 +253,6 @@ label {
     outline: 2px solid rgba(122, 92, 255, 0.65);
 }
 
-/* (If you still use panel mode somewhere) */
 .cal-panel {
     margin-top: 18px;
     max-width: 620px;
@@ -286,7 +288,7 @@ label {
     color: rgba(234,234,240,0.70);
 }
 
-/* Modal (popup) */
+/* ===== Modal (popup) ===== */
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -336,7 +338,8 @@ label {
 .modal-muted {
     color: rgba(234,234,240,0.70);
 }
-/*Dashboard streak*/
+
+/* ===== Dashboard Cards ===== */
 .cardbox {
     width: 220px;
     border-radius: 14px;
@@ -354,4 +357,90 @@ label {
     font-size: 26px;
     font-weight: 800;
     margin-top: 6px;
+}
+
+/* ===== Light Mode Fixes ===== */
+.theme-light .sidebar {
+    background: linear-gradient(180deg, #e8eafe 0%, #f4e7ff 100%);
+}
+
+.theme-light .top-row {
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+}
+
+.theme-light .form-control,
+.theme-light input.form-control,
+.theme-light textarea.form-control,
+.theme-light select.form-control {
+    background: #ffffff !important;
+    color: #12131a !important;
+    border: 1px solid var(--border) !important;
+}
+
+.theme-light select.form-control {
+    color-scheme: light;
+}
+
+    .theme-light select.form-control option {
+        background: #ffffff !important;
+        color: #12131a !important;
+    }
+
+.theme-light .journal-table,
+.theme-light .journal-table thead th,
+.theme-light .journal-table tbody td {
+    color: #12131a !important;
+    border-color: rgba(0,0,0,0.12) !important;
+}
+
+    .theme-light .journal-table tbody tr:hover {
+        background: rgba(0,0,0,0.04) !important;
+    }
+
+.theme-light .cal-weekdays {
+    color: rgba(0,0,0,0.55);
+}
+
+.theme-light .cal-cell {
+    background: #ffffff !important;
+    color: #12131a !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+.theme-light .cal-daynum {
+    color: #12131a !important;
+}
+
+.theme-light .cal-panel {
+    background: #ffffff !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+.theme-light .modal-backdrop {
+    background: rgba(0,0,0,0.35);
+}
+
+.theme-light .modal-card {
+    background: #ffffff !important;
+    color: #12131a !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+.theme-light .modal-close {
+    border: 1px solid rgba(0,0,0,0.12);
+    background: rgba(0,0,0,0.04);
+    color: #12131a;
+}
+
+.theme-light .modal-muted {
+    color: rgba(0,0,0,0.65) !important;
+}
+
+.theme-light .cardbox {
+    background: #ffffff !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+.theme-light .cardtitle {
+    color: rgba(0,0,0,0.65);
 }

@@ -1,4 +1,6 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject JournalApp.Services.ThemeService Theme
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <span class="navbar-brand">Journal</span>
     </div>
@@ -37,5 +39,20 @@
             </NavLink>
         </div>
 
+        <!-- THEME TOGGLE -->
+        <div class="nav-item px-3" style="margin-top:20px">
+            <button class="btn btn-secondary w-100" @onclick="ToggleTheme">
+                @(Theme.CurrentTheme == "light" ? "Dark Mode" : "Light Mode")
+            </button>
+        </div>
+
     </nav>
 </div>
+
+@code {
+    private async Task ToggleTheme()
+    {
+        await Theme.ToggleAsync();
+        StateHasChanged();
+    }
+}
