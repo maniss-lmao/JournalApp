@@ -3,74 +3,200 @@
 @inject JournalApp.Services.JournalService JournalService
 @inject NavigationManager Nav
 
-<h3>Calendar Navigation</h3>
+<div class="cal-wrap">
+    <div class="cal-top">
+        <div class="cal-title">@MonthTitle</div>
 
-<div style="max-width:600px">
-    <label>Select a date</label>
-    <input class="form-control" type="date" @bind="SelectedDate" />
-
-    <br />
-
-    <button class="btn btn-primary" @onclick="CheckDate">
-        Check / Load
-    </button>
-
-    <button class="btn btn-secondary" style="margin-left:10px" @onclick="OpenEditor">
-        Open Editor
-    </button>
-
-    <br /><br />
-
-    @if (!string.IsNullOrWhiteSpace(StatusMessage))
-    {
-        <div class="alert @StatusClass" style="max-width:600px">
-            @StatusMessage
+        <div style="display:flex; gap:10px; align-items:center">
+            <button class="btn btn-secondary" @onclick="PrevMonth">‹</button>
+            <button class="btn btn-secondary" @onclick="NextMonth">›</button>
         </div>
-    }
+    </div>
 
-    @if (FoundEntry is not null)
-    {
-        <div style="margin-top:10px; max-width:600px">
-            <p><b>Entry found for:</b> @FoundEntry.EntryDate.ToString("yyyy-MM-dd")</p>
-            <p><b>Title:</b> @FoundEntry.Title</p>
-            <p><b>Primary Mood:</b> @FoundEntry.PrimaryMood</p>
-            <p><b>Tags:</b> @FoundEntry.Tags</p>
-        </div>
-    }
+    <div class="cal-weekdays">
+        @foreach (var d in Weekdays)
+        {
+            <div style="text-align:center">@d</div>
+        }
+    </div>
+
+    <div class="cal-grid">
+        @foreach (var cell in CalendarCells)
+        {
+            if (cell is null)
+            {
+                <div class="cal-empty"></div>
+            }
+            else
+            {
+                var hasEntry = EntryDates.Contains(cell.Value);
+
+                <button type="button"
+                        class="cal-cell @(hasEntry ? "cal-has-entry" : "") @(SelectedDate == cell.Value ? "cal-selected" : "")"
+                        @onclick="() => SelectDate(cell.Value)">
+                    <div class="cal-daynum">@cell.Value.Day</div>
+                </button>
+            }
+        }
+    </div>
 </div>
 
+@if (SelectedDate is not null)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">
+                    @SelectedDate.Value.ToDateTime(TimeOnly.MinValue).ToString("dddd, MMMM d, yyyy")
+                </div>
+                <button type="button" class="modal-close" @onclick="CloseModal">×</button>
+            </div>
+
+            @if (SelectedEntry is null)
+            {
+                <div class="modal-body">
+                    <div class="modal-muted">No entries for this day.</div>
+
+                    <button type="button" class="btn btn-primary" style="margin-top:14px" @onclick="CreateEntry">
+                        + New Entry
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="modal-body">
+                    <div style="margin-bottom:10px">
+                        <b>@SelectedEntry.Title</b>
+                    </div>
+
+                    <div class="modal-muted">
+                        Mood: @SelectedEntry.PrimaryMood
+                        @if (!string.IsNullOrWhiteSpace(SelectedEntry.SecondaryMood1))
+                        {
+                            <span> | Secondary: @SelectedEntry.SecondaryMood1</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(SelectedEntry.SecondaryMood2))
+                        {
+                            <span>, @SelectedEntry.SecondaryMood2</span>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(SelectedEntry.Tags))
+                    {
+                        <div class="modal-muted" style="margin-top:6px">Tags: @SelectedEntry.Tags</div>
+                    }
+
+                    <div style="margin-top:16px">
+                        <button type="button" class="btn btn-primary" @onclick="EditEntry">Edit</button>
+
+                        <button type="button" class="btn btn-danger" style="margin-left:10px" @onclick="DeleteSelected">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @code {
-    private DateTime SelectedDate = DateTime.Today;
-    private JournalEntry? FoundEntry;
+    private DateOnly CurrentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
 
-    private string? StatusMessage;
-    private string StatusClass = "alert-info";
+    private string MonthTitle => CurrentMonth.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy");
 
-    private async Task CheckDate()
+    private readonly string[] Weekdays = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+    private List<DateOnly?> CalendarCells = new();
+    private HashSet<DateOnly> EntryDates = new();
+
+    private DateOnly? SelectedDate;
+    private JournalEntry? SelectedEntry;
+
+    protected override async Task OnInitializedAsync()
     {
-        FoundEntry = null;
-        StatusMessage = null;
+        BuildCalendarGrid();
+        await LoadMonth();
+    }
 
-        var dateOnly = DateOnly.FromDateTime(SelectedDate);
+    private void BuildCalendarGrid()
+    {
+        CalendarCells.Clear();
 
-        var entry = await JournalService.GetByDateAsync(dateOnly);
+        var firstDay = CurrentMonth;
+        int daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
 
-        if (entry is null)
+        int startOffset = (int)firstDay.ToDateTime(TimeOnly.MinValue).DayOfWeek;
+
+        for (int i = 0; i < startOffset; i++)
+            CalendarCells.Add(null);
+
+        for (int d = 1; d <= daysInMonth; d++)
+            CalendarCells.Add(new DateOnly(firstDay.Year, firstDay.Month, d));
+    }
+
+    private async Task LoadMonth()
+    {
+        EntryDates.Clear();
+
+        var all = await JournalService.GetAllAsync();
+        foreach (var e in all)
         {
-            StatusClass = "alert-warning";
-            StatusMessage = "No entry found for this date. You can create one by opening the editor.";
-        }
-        else
-        {
-            FoundEntry = entry;
-            StatusClass = "alert-success";
-            StatusMessage = "Entry found. You can open it in the editor.";
+            if (e.EntryDate.Year == CurrentMonth.Year && e.EntryDate.Month == CurrentMonth.Month)
+                EntryDates.Add(e.EntryDate);
         }
     }
 
-    private void OpenEditor()
+    private async Task SelectDate(DateOnly date)
     {
-        var dateOnly = DateOnly.FromDateTime(SelectedDate);
-        Nav.NavigateTo($"/editor/{dateOnly:yyyy-MM-dd}");
+        SelectedDate = date;
+        SelectedEntry = await JournalService.GetByDateAsync(date);
+    }
+
+    private void CloseModal()
+    {
+        SelectedDate = null;
+        SelectedEntry = null;
+    }
+
+    private void CreateEntry()
+    {
+        if (SelectedDate is null) return;
+        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}");
+    }
+
+    private void EditEntry()
+    {
+        if (SelectedDate is null) return;
+        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}");
+    }
+
+    private async Task DeleteSelected()
+    {
+        if (SelectedDate is null) return;
+
+        await JournalService.DeleteAsync(SelectedDate.Value);
+
+        await LoadMonth();
+        CloseModal();
+    }
+
+    private async Task PrevMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(-1);
+        SelectedDate = null;
+        SelectedEntry = null;
+
+        BuildCalendarGrid();
+        await LoadMonth();
+    }
+
+    private async Task NextMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(1);
+        SelectedDate = null;
+        SelectedEntry = null;
+
+        BuildCalendarGrid();
+        await LoadMonth();
     }
 }

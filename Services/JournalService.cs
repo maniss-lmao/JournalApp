@@ -112,6 +112,14 @@ public class JournalService
             .ToListAsync();
     }
 
+    public async Task<List<JournalEntry>> GetRangeAsync(DateOnly fromDate, DateOnly toDate)
+    {
+        return await _db.JournalEntries
+            .Where(e => e.EntryDate >= fromDate && e.EntryDate <= toDate)
+            .OrderBy(e => e.EntryDate)
+            .ToListAsync();
+    }
+
 }
 
 

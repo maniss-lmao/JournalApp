@@ -165,3 +165,193 @@ label {
     .journal-table tbody tr:hover {
         background: rgba(255,255,255,0.04);
     }
+/*/* Calendar page */
+.cal-wrap {
+    max-width: 1100px;
+}
+
+.cal-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.cal-title {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin: 12px 0;
+    color: rgba(234,234,240,0.65);
+}
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+}
+
+/* ✅ IMPORTANT: force buttons to stay dark even if Bootstrap .btn is applied */
+.cal-cell {
+    height: 110px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03) !important;
+    color: #eaeaf0 !important;
+    text-align: left;
+    padding: 12px;
+    cursor: pointer;
+    transition: 0.15s ease;
+    /* remove browser/Bootstrap defaults */
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+}
+
+    /* ✅ also block Bootstrap :focus style */
+    .cal-cell:focus,
+    .cal-cell:focus-visible {
+        outline: none !important;
+        box-shadow: 0 0 0 0.2rem rgba(122, 92, 255, 0.18) !important;
+        border-color: rgba(122, 92, 255, 0.55) !important;
+    }
+
+    /* hover */
+    .cal-cell:hover {
+        background: rgba(255,255,255,0.05) !important;
+        border-color: rgba(255,255,255,0.16);
+    }
+
+.cal-empty {
+    background: transparent !important;
+    border: none !important;
+    cursor: default;
+}
+
+/* bigger day number */
+.cal-daynum {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.cal-has-entry {
+    border-color: rgba(122, 92, 255, 0.55) !important;
+    box-shadow: 0 0 0 1px rgba(122, 92, 255, 0.10) inset;
+    background: rgba(122, 92, 255, 0.08) !important;
+}
+
+.cal-selected {
+    outline: 2px solid rgba(122, 92, 255, 0.65);
+}
+
+/* (If you still use panel mode somewhere) */
+.cal-panel {
+    margin-top: 18px;
+    max-width: 620px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03);
+    padding: 16px;
+}
+
+.cal-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.cal-panel-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.cal-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    color: #eaeaf0;
+    font-size: 18px;
+}
+
+.cal-muted {
+    color: rgba(234,234,240,0.70);
+}
+
+/* Modal (popup) */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-card {
+    width: 560px;
+    max-width: calc(100% - 24px);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: #0c0d12;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    padding: 16px;
+}
+
+.modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.modal-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    color: #eaeaf0;
+    font-size: 18px;
+}
+
+.modal-body {
+    padding-top: 6px;
+}
+
+.modal-muted {
+    color: rgba(234,234,240,0.70);
+}
+/*Dashboard streak*/
+.cardbox {
+    width: 220px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03);
+    padding: 14px;
+}
+
+.cardtitle {
+    color: rgba(234,234,240,0.70);
+    font-size: 13px;
+}
+
+.cardvalue {
+    font-size: 26px;
+    font-weight: 800;
+    margin-top: 6px;
+}
