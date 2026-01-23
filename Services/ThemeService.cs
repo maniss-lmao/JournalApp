@@ -5,8 +5,9 @@ public class ThemeService
     private const string ThemeKey = "app_theme";
 
     public string CurrentTheme { get; private set; } = "dark";
-
     public string ThemeClass => CurrentTheme == "light" ? "theme-light" : "theme-dark";
+
+    public event Action? OnChange;
 
     public ThemeService()
     {
@@ -17,6 +18,8 @@ public class ThemeService
     {
         CurrentTheme = CurrentTheme == "dark" ? "light" : "dark";
         Preferences.Set(ThemeKey, CurrentTheme);
+
+        OnChange?.Invoke();
         return Task.CompletedTask;
     }
 }

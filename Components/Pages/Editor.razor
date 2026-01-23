@@ -3,6 +3,8 @@
 @page "/editor/{dateString}"
 @using JournalApp.Models
 @inject JournalApp.Services.JournalService JournalService
+@using Markdig
+@using Microsoft.AspNetCore.Components
 
 <h3>Today's Journal Entry</h3>
 
@@ -19,8 +21,30 @@
 
     <br />
 
-    <label>Content</label><br />
-    <textarea class="form-control" rows="6" @bind="Entry.Content"></textarea>
+    <label>Content (Markdown Supported)</label><br />
+
+    <div style="display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("**bold**")'>Bold</button>
+        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("_italic_")'>Italic</button>
+        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("# Heading")'>Heading</button>
+        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("- list item")'>List</button>
+        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("[text](https://example.com)")'>Link</button>
+
+        <button class="btn btn-primary btn-sm" type="button" style="margin-left:auto" @onclick="TogglePreview">
+            @(IsPreview ? "Edit" : "Preview")
+        </button>
+    </div>
+
+    @if (!IsPreview)
+    {
+        <textarea class="form-control" rows="8" @bind="Entry.Content"></textarea>
+    }
+    else
+    {
+        <div class="form-control" style="min-height:180px; white-space:normal">
+            @((MarkupString)RenderedHtml)
+        </div>
+    }
 
     <br />
 
@@ -84,19 +108,24 @@
         Save
     </button>
 
-    <button class="btn btn-danger" style="margin-left:10px"
-            @onclick="DeleteEntry">
+    <button class="btn btn-danger" style="margin-left:10px" @onclick="DeleteEntry">
         Delete
     </button>
 </div>
 
 @code {
-    
     [Parameter] public string? dateString { get; set; }
 
     private JournalEntry Entry = new();
     private string? Message;
     private string MessageClass = "alert-success";
+
+    private bool IsPreview = false;
+    private string RenderedHtml = "";
+
+    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
 
     private readonly List<string> MoodOptions = new()
     {
@@ -115,7 +144,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-       
         DateOnly targetDate;
 
         if (!string.IsNullOrWhiteSpace(dateString) && DateOnly.TryParse(dateString, out var parsed))
@@ -143,6 +171,30 @@
         }
     }
 
+    private void TogglePreview()
+    {
+        IsPreview = !IsPreview;
+
+        if (IsPreview)
+        {
+            RenderedHtml = Markdown.ToHtml(Entry.Content ?? "", _pipeline);
+        }
+    }
+
+    private void InsertMd(string snippet)
+    {
+        if (string.IsNullOrWhiteSpace(Entry.Content))
+            Entry.Content = snippet;
+        else
+            Entry.Content += "\n" + snippet;
+
+        // If user is in preview mode, refresh preview instantly
+        if (IsPreview)
+        {
+            RenderedHtml = Markdown.ToHtml(Entry.Content ?? "", _pipeline);
+        }
+    }
+
     private void ToggleTag(string tag)
     {
         if (!SelectedTags.Add(tag))
@@ -151,7 +203,6 @@
 
     private async Task SaveEntry()
     {
-        // Basic required fields
         if (string.IsNullOrWhiteSpace(Entry.Title))
         {
             MessageClass = "alert-danger";
@@ -173,7 +224,6 @@
             return;
         }
 
-        // Secondary mood validation (optional but must not duplicate)
         var p = Entry.PrimaryMood?.Trim();
         var s1 = string.IsNullOrWhiteSpace(Entry.SecondaryMood1) ? null : Entry.SecondaryMood1.Trim();
         var s2 = string.IsNullOrWhiteSpace(Entry.SecondaryMood2) ? null : Entry.SecondaryMood2.Trim();
@@ -199,7 +249,6 @@
             return;
         }
 
-        // Tags: add custom tag if provided
         if (!string.IsNullOrWhiteSpace(CustomTag))
         {
             SelectedTags.Add(CustomTag.Trim());
@@ -208,6 +257,7 @@
         Entry.Tags = string.Join(", ", SelectedTags);
 
         await JournalService.SaveAsync(Entry);
+
         MessageClass = "alert-success";
         Message = "Journal entry saved successfully.";
         CustomTag = string.Empty;

@@ -1,6 +1,7 @@
 ﻿@namespace JournalApp.Components.Layout
 @inherits LayoutComponentBase
 @inject JournalApp.Services.ThemeService Theme
+@implements IDisposable
 
 <div class="page @Theme.ThemeClass">
     <div class="sidebar">
@@ -13,3 +14,20 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Theme.OnChange += ThemeChanged;
+    }
+
+    private void ThemeChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Theme.OnChange -= ThemeChanged;
+    }
+}
