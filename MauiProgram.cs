@@ -2,7 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using JournalApp.Data;
 using JournalApp.Services;
-
+using QuestPDF.Infrastructure;
+ 
 namespace JournalApp;
 
 public static class MauiProgram
@@ -28,12 +29,16 @@ public static class MauiProgram
         builder.Services.AddSingleton<AppState>();
         builder.Services.AddSingleton<LockService>();
         builder.Services.AddSingleton<ThemeService>();
+        
+
 
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
         builder.Logging.AddDebug();
 #endif
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 
         var app = builder.Build();
 
@@ -44,5 +49,8 @@ public static class MauiProgram
         }
 
         return app;
+
     }
+ 
 }
+

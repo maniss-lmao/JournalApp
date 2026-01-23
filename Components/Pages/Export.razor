@@ -2,7 +2,6 @@
 @inject JournalApp.Services.JournalService JournalService
 
 @using QuestPDF.Fluent
-@using QuestPDF.Helpers
 @using QuestPDF.Infrastructure
 @using JournalApp.Models
 
@@ -20,14 +19,52 @@
 
     <br />
 
-    <button class="btn btn-primary" @onclick="ExportPdf">
-        Export PDF
+    <button class="btn btn-primary" @onclick="ExportPdf" disabled="@IsExporting">
+        @(IsExporting ? "Exporting..." : "Export PDF")
+    </button>
+
+    <button class="btn btn-secondary" style="margin-left:10px"
+            @onclick="OpenLastPdf"
+            disabled="@(string.IsNullOrWhiteSpace(LastFilePath))">
+        Open PDF
+    </button>
+
+    <button class="btn btn-secondary" style="margin-left:10px"
+            @onclick="ToggleHistory">
+        PDF History
     </button>
 
     @if (!string.IsNullOrWhiteSpace(Message))
     {
-        <div class="alert alert-success" style="margin-top:12px">
+        <div class="alert @MessageClass" style="margin-top:12px; white-space:pre-line">
             @Message
+        </div>
+    }
+
+    @if (ShowHistory)
+    {
+        <div style="margin-top:14px">
+            <h5>Exported PDFs</h5>
+
+            @if (History.Count == 0)
+            {
+                <p>No exported PDFs yet.</p>
+            }
+            else
+            {
+                <ul style="padding-left:18px">
+                    @foreach (var file in History)
+                    {
+                        <li style="margin-bottom:8px">
+                            <button class="btn btn-secondary btn-sm"
+                                    @onclick="() => OpenPdf(file.FullPath)">
+                                Open
+                            </button>
+                            <span style="margin-left:10px">@file.FileName</span>
+                        </li>
+                    }
+                </ul>
+            }
         </div>
     }
 </div>
@@ -36,66 +73,176 @@
     private DateTime FromDate = DateTime.Today.AddDays(-7);
     private DateTime ToDate = DateTime.Today;
 
+    private bool IsExporting;
+
     private string? Message;
+    private string MessageClass = "alert-success";
+
+    private string LastFilePath = "";
+
+    private bool ShowHistory = false;
+    private List<PdfItem> History = new();
+
+    protected override void OnInitialized()
+    {
+        LoadHistory();
+    }
 
     private async Task ExportPdf()
     {
-        var from = DateOnly.FromDateTime(FromDate);
-        var to = DateOnly.FromDateTime(ToDate);
+        Message = null;
+        MessageClass = "alert-success";
+        IsExporting = true;
 
-        var entries = await JournalService.GetRangeAsync(from, to);
-
-        if (entries.Count == 0)
+        try
         {
-            Message = "No entries found in selected range.";
-            return;
-        }
+            var from = DateOnly.FromDateTime(FromDate);
+            var to = DateOnly.FromDateTime(ToDate);
 
-        var filePath = Path.Combine(
-            FileSystem.AppDataDirectory,
-            $"Journal_{from}_{to}.pdf"
-        );
+            // swap if user selects wrong order
+            if (to < from)
+                (from, to) = (to, from);
 
-        Document.Create(container =>
-        {
-            container.Page(page =>
+            var entries = await JournalService.GetRangeAsync(from, to);
+
+            if (entries.Count == 0)
             {
-                page.Size(PageSizes.A4);
-                page.Margin(30);
-                page.DefaultTextStyle(x => x.FontSize(12));
+                MessageClass = "alert-danger";
+                Message = "No entries found in selected range.";
+                return;
+            }
 
-                page.Content().Column(col =>
+            var fileName = $"Journal_{from:yyyy-MM-dd}_to_{to:yyyy-MM-dd}.pdf";
+            var filePath = Path.Combine(FileSystem.AppDataDirectory, fileName);
+
+            // Run PDF generation off the UI thread
+            await Task.Run(() =>
+            {
+                Document.Create(container =>
                 {
-                    col.Item().Text("Journal Export")
-                        .FontSize(20)
-                        .Bold()
-                        .AlignCenter();
-
-                    col.Item().PaddingVertical(10);
-
-                    foreach (var e in entries)
+                    container.Page(page =>
                     {
-                        col.Item().Border(1).Padding(10).Column(c =>
+                        page.Margin(30);
+                        page.DefaultTextStyle(x => x.FontSize(12));
+
+                        page.Header()
+                            .Text($"Journal Export ({from:yyyy-MM-dd} to {to:yyyy-MM-dd})")
+                            .FontSize(18)
+                            .Bold()
+                            .AlignCenter();
+
+                        page.Content().Column(col =>
                         {
-                            c.Item().Text($"{e.EntryDate:yyyy-MM-dd} - {e.Title}")
-                                .Bold();
+                            col.Item().PaddingVertical(10);
 
-                            c.Item().Text($"Mood: {e.PrimaryMood}");
+                            foreach (var e in entries.OrderBy(x => x.EntryDate))
+                            {
+                                col.Item().Border(1).Padding(10).Column(c =>
+                                {
+                                    c.Item().Text($"{e.EntryDate:yyyy-MM-dd} - {e.Title}").Bold();
+                                    c.Item().Text($"Mood: {e.PrimaryMood}");
 
-                            if (!string.IsNullOrWhiteSpace(e.Tags))
-                                c.Item().Text($"Tags: {e.Tags}");
+                                    if (!string.IsNullOrWhiteSpace(e.Tags))
+                                        c.Item().Text($"Tags: {e.Tags}");
 
-                            c.Item().PaddingTop(6);
-                            c.Item().Text(e.Content);
+                                    c.Item().PaddingTop(6);
+                                    c.Item().Text(e.Content ?? "");
+                                });
+
+                                col.Item().PaddingVertical(6);
+                            }
                         });
-
-                        col.Item().PaddingVertical(6);
-                    }
-                });
+                    });
+                })
+                .GeneratePdf(filePath);
             });
-        })
-        .GeneratePdf(filePath);
 
-        Message = $"PDF exported successfully to:\n{filePath}";
+            LastFilePath = filePath;
+
+            MessageClass = "alert-success";
+            Message = $"PDF exported successfully!\nSaved in AppDataDirectory as:\n{fileName}";
+
+            LoadHistory();
+        }
+        catch (Exception ex)
+        {
+            MessageClass = "alert-danger";
+            Message = "Export failed: " + ex.Message;
+        }
+        finally
+        {
+            IsExporting = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ToggleHistory()
+    {
+        ShowHistory = !ShowHistory;
+        if (ShowHistory)
+            LoadHistory();
+    }
+
+    private async Task OpenLastPdf()
+    {
+        if (string.IsNullOrWhiteSpace(LastFilePath)) return;
+        await OpenPdf(LastFilePath);
+    }
+
+    private async Task OpenPdf(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                MessageClass = "alert-danger";
+                Message = "File not found:\n" + path;
+                return;
+            }
+
+            await Launcher.OpenAsync(new OpenFileRequest
+            {
+                File = new ReadOnlyFile(path)
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageClass = "alert-danger";
+            Message = "Could not open PDF: " + ex.Message;
+        }
+    }
+
+    private void LoadHistory()
+    {
+        History.Clear();
+
+        try
+        {
+            var dir = FileSystem.AppDataDirectory;
+            if (!Directory.Exists(dir)) return;
+
+            var files = Directory.GetFiles(dir, "Journal_*.pdf")
+                                 .OrderByDescending(f => File.GetLastWriteTime(f))
+                                 .ToList();
+
+            foreach (var f in files)
+            {
+                History.Add(new PdfItem
+                {
+                    FileName = Path.GetFileName(f),
+                    FullPath = f
+                });
+            }
+        }
+        catch
+        {
+            
+        }
+    }
+
+    private class PdfItem
+    {
+        public string FileName { get; set; } = "";
+        public string FullPath { get; set; } = "";
     }
 }
