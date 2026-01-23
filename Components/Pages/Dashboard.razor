@@ -32,27 +32,92 @@ else
         </div>
     </div>
 
-    <div style="max-width:900px">
-        <h5>Most Frequent Mood</h5>
-        <p>@(string.IsNullOrWhiteSpace(MostFrequentMood) ? "No data yet" : MostFrequentMood)</p>
+    <div style="display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start">
 
-        <h5>Most Used Tags</h5>
-        @if (TopTags.Count == 0)
+        <div style="flex:1; min-width:340px; max-width:520px">
+            <h5>Mood Distribution</h5>
+
+            @if (MoodStats.Count == 0)
+            {
+                <p>No mood data yet</p>
+            }
+            else
+            {
+                @foreach (var m in MoodStats)
+                {
+                    <div style="margin-bottom:10px">
+                        <div style="display:flex; justify-content:space-between; font-size:14px">
+                            <span>@m.Mood</span>
+                            <span>@m.Count (@m.Percent%)</span>
+                        </div>
+
+                        <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
+                            <div style="height:100%; width:@(m.Percent)%; background:rgba(122, 92, 255, 0.75)"></div>
+                        </div>
+                    </div>
+                }
+
+                <div style="margin-top:8px">
+                    <b>Most Frequent Mood:</b>
+                    @(string.IsNullOrWhiteSpace(MostFrequentMood) ? "No data yet" : MostFrequentMood)
+                </div>
+            }
+        </div>
+
+        <div style="flex:1; min-width:340px; max-width:520px">
+            <h5>Most Used Tags</h5>
+
+            @if (TopTags.Count == 0)
+            {
+                <p>No tags yet</p>
+            }
+            else
+            {
+                @foreach (var t in TopTags)
+                {
+                    <div style="margin-bottom:10px">
+                        <div style="display:flex; justify-content:space-between; font-size:14px">
+                            <span>@t.Tag</span>
+                            <span>@t.Count</span>
+                        </div>
+
+                        <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
+                            <div style="height:100%; width:@(t.Percent)%; background:rgba(255, 255, 255, 0.35)"></div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+    </div>
+
+    <div style="margin-top:22px; max-width:900px">
+        <h5>Word Count Trend (Last 7 Days)</h5>
+
+        @if (WordTrend.Count == 0)
         {
-            <p>No tags yet</p>
+            <p>No entries in the last 7 days</p>
         }
         else
         {
-            <ul>
-                @foreach (var t in TopTags)
-                {
-                    <li>@t.Tag (@t.Count)</li>
-                }
-            </ul>
-        }
+            <div style="margin-bottom:10px">
+                <b>Average words:</b> @AvgWordsLast7
+            </div>
 
-        <h5>Word Count (Last 7 Days)</h5>
-        <p>Average: @AvgWordsLast7</p>
+            @foreach (var w in WordTrend.OrderBy(x => x.Date))
+            {
+                <div style="margin-bottom:10px">
+                    <div style="display:flex; justify-content:space-between; font-size:14px">
+                        <span>@w.Date.ToString("yyyy-MM-dd")</span>
+                        <span>@w.Words words</span>
+                    </div>
+
+                    <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
+                        <div style="height:100%; width:@(w.Percent)%; background:rgba(122, 92, 255, 0.45)"></div>
+                    </div>
+                </div>
+            }
+        }
     </div>
 }
 
@@ -67,7 +132,9 @@ else
     private string MostFrequentMood = "";
     private int AvgWordsLast7;
 
-    private List<TagCount> TopTags = new();
+    private List<MoodStat> MoodStats = new();
+    private List<TagStat> TopTags = new();
+    private List<WordStat> WordTrend = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -78,9 +145,10 @@ else
 
         CalculateStreaks(all);
         CalculateMissedDaysLast30(all);
-        CalculateMostFrequentMood(all);
+
+        CalculateMoodDistribution(all);
         CalculateTopTags(all);
-        await CalculateAvgWordsLast7();
+        await CalculateWordTrendLast7();
 
         IsLoading = false;
     }
@@ -99,7 +167,6 @@ else
                        .OrderBy(d => d)
                        .ToList();
 
-        // Longest streak
         int best = 1;
         int run = 1;
 
@@ -115,14 +182,12 @@ else
 
         LongestStreak = best;
 
-        // Current streak (count back from today)
         var today = DateOnly.FromDateTime(DateTime.Today);
         int current = 0;
 
-        while (dates.Contains(today.AddDays(-current)))
-        {
+        var set = dates.ToHashSet();
+        while (set.Contains(today.AddDays(-current)))
             current++;
-        }
 
         CurrentStreak = current;
     }
@@ -145,14 +210,34 @@ else
         MissedDaysCount = missed;
     }
 
-    private void CalculateMostFrequentMood(List<JournalEntry> all)
+    private void CalculateMoodDistribution(List<JournalEntry> all)
     {
-        MostFrequentMood = all
+        var groups = all
             .Where(e => !string.IsNullOrWhiteSpace(e.PrimaryMood))
             .GroupBy(e => e.PrimaryMood.Trim())
-            .OrderByDescending(g => g.Count())
-            .Select(g => g.Key)
-            .FirstOrDefault() ?? "";
+            .Select(g => new { Mood = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        if (groups.Count == 0)
+        {
+            MoodStats = new();
+            MostFrequentMood = "";
+            return;
+        }
+
+        int total = groups.Sum(x => x.Count);
+
+        MoodStats = groups
+            .Select(x => new MoodStat
+            {
+                Mood = x.Mood,
+                Count = x.Count,
+                Percent = total == 0 ? 0 : (int)Math.Round((x.Count * 100.0) / total)
+            })
+            .ToList();
+
+        MostFrequentMood = groups.First().Mood;
     }
 
     private void CalculateTopTags(List<JournalEntry> all)
@@ -174,14 +259,21 @@ else
             }
         }
 
-        TopTags = dict
+        var list = dict
             .OrderByDescending(kv => kv.Value)
             .Take(8)
-            .Select(kv => new TagCount { Tag = kv.Key, Count = kv.Value })
+            .Select(kv => new TagStat { Tag = kv.Key, Count = kv.Value })
             .ToList();
+
+        int max = list.Count == 0 ? 0 : list.Max(x => x.Count);
+
+        foreach (var t in list)
+            t.Percent = max == 0 ? 0 : (int)Math.Round((t.Count * 100.0) / max);
+
+        TopTags = list;
     }
 
-    private async Task CalculateAvgWordsLast7()
+    private async Task CalculateWordTrendLast7()
     {
         var end = DateOnly.FromDateTime(DateTime.Today);
         var start = end.AddDays(-6);
@@ -191,17 +283,27 @@ else
         if (range.Count == 0)
         {
             AvgWordsLast7 = 0;
+            WordTrend = new();
             return;
         }
 
-        int totalWords = 0;
-        foreach (var e in range)
-        {
-            var words = CountWords(e.Content);
-            totalWords += words;
-        }
+        var byDay = range
+            .GroupBy(e => e.EntryDate)
+            .Select(g => new WordStat
+            {
+                Date = g.Key,
+                Words = CountWords(g.First().Content)
+            })
+            .ToList();
 
-        AvgWordsLast7 = totalWords / range.Count;
+        int totalWords = byDay.Sum(x => x.Words);
+        AvgWordsLast7 = totalWords / byDay.Count;
+
+        int max = byDay.Max(x => x.Words);
+        foreach (var w in byDay)
+            w.Percent = max == 0 ? 0 : (int)Math.Round((w.Words * 100.0) / max);
+
+        WordTrend = byDay;
     }
 
     private int CountWords(string? text)
@@ -212,9 +314,24 @@ else
                           StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
-    private class TagCount
+    private class MoodStat
+    {
+        public string Mood { get; set; } = "";
+        public int Count { get; set; }
+        public int Percent { get; set; }
+    }
+
+    private class TagStat
     {
         public string Tag { get; set; } = "";
         public int Count { get; set; }
+        public int Percent { get; set; }
+    }
+
+    private class WordStat
+    {
+        public DateOnly Date { get; set; }
+        public int Words { get; set; }
+        public int Percent { get; set; }
     }
 }
