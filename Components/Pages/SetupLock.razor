@@ -25,6 +25,29 @@
     <input class="form-control" type="password" @bind="ConfirmPin" />
 
     <br />
+    <hr />
+
+    <h5>Security Questions (for reset)</h5>
+
+    <label>Security Question 1</label>
+    <input class="form-control" value="@SecurityQuestion1" disabled />
+
+    <br />
+
+    <label>Answer 1</label>
+    <input class="form-control" @bind="SecurityAnswer1" />
+
+    <br />
+
+    <label>Security Question 2</label>
+    <input class="form-control" value="@SecurityQuestion2" disabled />
+
+    <br />
+
+    <label>Answer 2</label>
+    <input class="form-control" @bind="SecurityAnswer2" />
+
+    <br />
 
     <button class="btn btn-primary" @onclick="Save">
         Save & Continue
@@ -37,9 +60,16 @@
     private string ConfirmPin = "";
     private string? Message;
 
+    // Fixed questions reduce setup errors and make verification consistent
+    private string SecurityQuestion1 = "What is your favourite food?";
+    private string SecurityAnswer1 = "";
+
+    private string SecurityQuestion2 = "What is the name of your first school?";
+    private string SecurityAnswer2 = "";
+
     protected override async Task OnInitializedAsync()
     {
-        // If already set, go to unlock instead of setup
+        // If already configured, setup should not be shown again
         if (await LockService.HasPinAsync())
         {
             Nav.NavigateTo("/unlock", true);
@@ -68,10 +98,25 @@
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(SecurityAnswer1) || string.IsNullOrWhiteSpace(SecurityAnswer2))
+        {
+            Message = "Please fill both security answers.";
+            return;
+        }
+
         LockService.SaveUsername(Username.Trim());
         await LockService.SavePinAsync(Pin);
 
+        await LockService.SaveSecurityQuestionsAsync(
+            SecurityQuestion1,
+            SecurityAnswer1,
+            SecurityQuestion2,
+            SecurityAnswer2
+        );
+
+        // Mark session as unlocked after setup
         AppState.SetUnlocked(Username.Trim());
+
         Nav.NavigateTo("/editor", true);
     }
 }

@@ -35,19 +35,26 @@
     {
         var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
 
-        var isAllowed = path.StartsWith("/setup") || path.StartsWith("/unlock");
+        // Pages that must be accessible BEFORE unlock (otherwise reset flow breaks)
+        var isAllowed =
+            path.StartsWith("/setup") ||
+            path.StartsWith("/unlock") ||
+            path.StartsWith("/reset") ||          // allow /reset and any /reset/*
+            path.StartsWith("/reset-verify");     // if your page name is specifically this
 
         if (isAllowed)
             return;
 
         var hasPin = await LockService.HasPinAsync();
 
+        // No lock configured yet -> force setup
         if (!hasPin)
         {
             Nav.NavigateTo("/setup", true);
             return;
         }
 
+        // Lock exists but user hasn't unlocked session -> force unlock
         if (!AppState.IsUnlocked)
         {
             Nav.NavigateTo("/unlock", true);

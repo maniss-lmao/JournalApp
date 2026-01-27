@@ -25,9 +25,15 @@
         Unlock
     </button>
 
-    <button class="btn btn-danger" style="margin-left:10px" @onclick="ResetAll">
+    <button class="btn btn-danger" style="margin-left:10px" @onclick="GoToResetVerify">
         Reset (Forgot PIN)
     </button>
+
+    <button class="btn btn-secondary" @onclick="ResetAccount">
+        Reset Account
+    </button>
+
+
 </div>
 
 @code {
@@ -73,8 +79,18 @@
 
     private async Task ResetAll()
     {
-        await LockService.ResetAsync();
+        await LockService.ResetAccountAsync();
         AppState.Lock();
         Nav.NavigateTo("/setup", true);
     }
+    private void GoToResetVerify()
+    {
+        Nav.NavigateTo("/reset-verify", true);
+    }
+    private async Task ResetAccount()
+    {
+        await LockService.ResetAccountAsync();
+        Nav.NavigateTo("/setup", true);
+    }
+
 }

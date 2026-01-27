@@ -5,10 +5,12 @@
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // run on every navigation / render
         var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
 
-        bool allowed = path.StartsWith("/setup") || path.StartsWith("/unlock");
+        bool allowed =
+            path.StartsWith("/setup") ||
+            path.StartsWith("/unlock") ||
+            path.StartsWith("/reset-verify");
 
         if (allowed) return;
 

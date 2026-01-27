@@ -1,0 +1,92 @@
+@page "/reset-verify"
+@inject JournalApp.Services.LockService LockService
+@inject JournalApp.Services.AppState AppState
+@inject NavigationManager Nav
+
+<h3>Reset PIN Verification</h3>
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="alert @MessageClass" style="max-width:520px">@Message</div>
+}
+
+<div style="max-width:520px">
+    <p class="text-muted" style="margin-bottom:12px">
+        Answer the security questions to reset your PIN.
+    </p>
+
+    <label>Security Question 1: What is your favourite food?</label>
+    <input class="form-control" @bind="Answer1" />
+
+    <br />
+
+    <label>Security Question 2: What is the name of your first school?</label>
+    <input class="form-control" @bind="Answer2" />
+
+    <br />
+
+    <button class="btn btn-primary" @onclick="VerifyAndReset">
+        Verify &amp; Reset
+    </button>
+
+    <button class="btn btn-secondary" style="margin-left:10px" @onclick="GoBack">
+        Back
+    </button>
+</div>
+
+@code {
+    private string Answer1 = "";
+    private string Answer2 = "";
+
+    private string? Message;
+    private string MessageClass = "alert-danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await LockService.HasPinAsync())
+        {
+            Nav.NavigateTo("/setup", true);
+            return;
+        }
+
+        if (!await LockService.HasSecurityQuestionsAsync()
+)
+        {
+            MessageClass = "alert-warning";
+            Message = "Security questions are not set. Please set up your PIN again.";
+        }
+    }
+
+    private async Task VerifyAndReset()
+    {
+        Message = null;
+
+        if (string.IsNullOrWhiteSpace(Answer1) || string.IsNullOrWhiteSpace(Answer2))
+        {
+            MessageClass = "alert-danger";
+            Message = "Both security answers are required.";
+            return;
+        }
+
+        var ok = await LockService.VerifySecurityAnswersAsync(Answer1, Answer2);
+        if (!ok)
+        {
+            MessageClass = "alert-danger";
+            Message = "Verification failed. Answers do not match.";
+            return;
+        }
+
+        await LockService.ResetAccountAsync();
+        AppState.Lock();
+
+        MessageClass = "alert-success";
+        Message = "Verified. Please set a new PIN.";
+
+        Nav.NavigateTo("/setup", true);
+    }
+
+    private void GoBack()
+    {
+        Nav.NavigateTo("/unlock", true);
+    }
+}

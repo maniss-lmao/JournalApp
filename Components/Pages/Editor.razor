@@ -220,7 +220,7 @@
         }
     }
 
-    // === NEW: selection-based formatting via JS ===
+    //  NEW: selection-based formatting via JS 
     private async Task WrapSelection(string left, string right)
     {
         var newValue = await JS.InvokeAsync<string?>("journalEditor.wrapSelection", EditorTextAreaId, left, right);
