@@ -1,120 +1,158 @@
 ﻿@page "/"
 @page "/editor"
 @page "/editor/{dateString}"
-@using JournalApp.Models
-@inject JournalApp.Services.JournalService JournalService
-@using Markdig
-@using Microsoft.AspNetCore.Components
 
-<h3>Today's Journal Entry</h3>
+@using JournalApp.Models
+@using Markdig
+@inject JournalApp.Services.JournalService JournalService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<h2 class="editor-title">Journal Entry</h2>
 
 @if (!string.IsNullOrEmpty(Message))
 {
-    <div class="alert @MessageClass" role="alert" style="max-width:600px">
+    <div class="alert @MessageClass editor-alert" role="alert">
         @Message
     </div>
 }
 
-<div style="max-width:600px">
-    <label>Title</label><br />
-    <input class="form-control" @bind="Entry.Title" />
+<div class="editor-shell">
 
-    <br />
-
-    <label>Content (Markdown Supported)</label><br />
-
-    <div style="display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("**bold**")'>Bold</button>
-        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("_italic_")'>Italic</button>
-        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("# Heading")'>Heading</button>
-        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("- list item")'>List</button>
-        <button class="btn btn-secondary btn-sm" type="button" @onclick='() => InsertMd("[text](https://example.com)")'>Link</button>
-
-        <button class="btn btn-primary btn-sm" type="button" style="margin-left:auto" @onclick="TogglePreview">
-            @(IsPreview ? "Edit" : "Preview")
-        </button>
-    </div>
-
-    @if (!IsPreview)
-    {
-        <textarea class="form-control" rows="8" @bind="Entry.Content"></textarea>
-    }
-    else
-    {
-        <div class="form-control" style="min-height:180px; white-space:normal">
-            @((MarkupString)RenderedHtml)
+    <!-- Top Bar -->
+    <div class="editor-topbar">
+        <div class="editor-top-left">
+            <div class="editor-label">Title</div>
+            <input class="form-control editor-title-input" @bind="Entry.Title" />
+            <div class="editor-date">
+                Date: @Entry.EntryDate.ToDateTime(TimeOnly.MinValue).ToString("MMMM dd, yyyy")
+            </div>
         </div>
-    }
 
-    <br />
-
-    <label>Primary Mood <span style="color:red">*</span></label><br />
-    <select class="form-control" @bind="Entry.PrimaryMood">
-        <option value="">-- Select Primary Mood --</option>
-        @foreach (var m in MoodOptions)
-        {
-            <option value="@m">@m</option>
-        }
-    </select>
-
-    <br />
-
-    <label>Secondary Mood 1 (optional)</label><br />
-    <select class="form-control" @bind="Entry.SecondaryMood1">
-        <option value="">-- None --</option>
-        @foreach (var m in MoodOptions)
-        {
-            <option value="@m">@m</option>
-        }
-    </select>
-
-    <br />
-
-    <label>Secondary Mood 2 (optional)</label><br />
-    <select class="form-control" @bind="Entry.SecondaryMood2">
-        <option value="">-- None --</option>
-        @foreach (var m in MoodOptions)
-        {
-            <option value="@m">@m</option>
-        }
-    </select>
-
-    <br />
-
-    <label>Tags</label>
-    <div>
-        @foreach (var tag in PredefinedTags)
-        {
-            <label class="tag-pill @(SelectedTags.Contains(tag) ? "tag-pill-selected" : "")">
-                <input class="tag-hidden"
-                       type="checkbox"
-                       checked="@SelectedTags.Contains(tag)"
-                       @onchange="() => ToggleTag(tag)" />
-                @tag
-            </label>
-        }
+        <div class="editor-top-actions">
+            <button class="btn btn-primary" @onclick="SaveEntry">Save Entry</button>
+            <button class="btn btn-danger" @onclick="DeleteEntry">Delete</button>
+        </div>
     </div>
 
-    <br />
+    <!-- Main two-column layout -->
+    <div class="editor-grid">
 
-    <label>Add custom tag</label>
-    <input class="form-control"
-           placeholder="e.g. Gym, Family"
-           @bind="CustomTag" />
+        <!-- LEFT: Writing area -->
+        <section class="editor-left">
 
-    <br />
+            <div class="editor-toolbar">
+                <button type="button" class="toolbtn" title="Bold"
+                        @onclick='async () => await WrapSelection("**", "**")'>
+                    <span class="toolicon">B</span>
+                </button>
 
-    <button class="btn btn-primary" @onclick="SaveEntry">
-        Save
-    </button>
+                <button type="button" class="toolbtn" title="Italic"
+                        @onclick='async () => await WrapSelection("_", "_")'>
+                    <span class="toolicon"><i>I</i></span>
+                </button>
 
-    <button class="btn btn-danger" style="margin-left:10px" @onclick="DeleteEntry">
-        Delete
-    </button>
+                <button type="button" class="toolbtn" title="Heading"
+                        @onclick='async () => await InsertLine("# ")'>
+                    <span class="toolicon">H</span>
+                </button>
+
+                <button type="button" class="toolbtn" title="List"
+                        @onclick='async () => await InsertLine("- ")'>
+                    <span class="toolicon">•</span>
+                </button>
+
+                <button type="button" class="toolbtn" title="Link"
+                        @onclick="InsertLink">
+                    <span class="toolicon">🔗</span>
+                </button>
+
+                <div class="toolspacer"></div>
+
+                <button class="btn btn-primary editor-preview-btn" type="button" @onclick="TogglePreview">
+                    @(IsPreview ? "Edit" : "Preview")
+                </button>
+            </div>
+
+
+            @if (!IsPreview)
+            {
+                <textarea id="@EditorTextAreaId"
+                          class="form-control editor-textarea"
+                          rows="18"
+                          @bind="Entry.Content"></textarea>
+            }
+            else
+            {
+                <div class="editor-preview">
+                    @((MarkupString)RenderedHtml)
+                </div>
+            }
+        </section>
+
+        <!-- RIGHT: Mood + Tags -->
+        <aside class="editor-right">
+
+            <div class="panelbox">
+                <div class="paneltitle">Moods</div>
+
+                <label class="panel-label">Primary Mood <span class="req">*</span></label>
+                <select class="form-control" @bind="Entry.PrimaryMood">
+                    <option value="">-- Select Primary Mood --</option>
+                    @foreach (var m in MoodOptions)
+                    {
+                        <option value="@m">@m</option>
+                    }
+                </select>
+
+                <label class="panel-label">Secondary Mood 1 (optional)</label>
+                <select class="form-control" @bind="Entry.SecondaryMood1">
+                    <option value="">-- None --</option>
+                    @foreach (var m in MoodOptions)
+                    {
+                        <option value="@m">@m</option>
+                    }
+                </select>
+
+                <label class="panel-label">Secondary Mood 2 (optional)</label>
+                <select class="form-control" @bind="Entry.SecondaryMood2">
+                    <option value="">-- None --</option>
+                    @foreach (var m in MoodOptions)
+                    {
+                        <option value="@m">@m</option>
+                    }
+                </select>
+            </div>
+
+            <div class="panelbox" style="margin-top:14px">
+                <div class="paneltitle">Tags</div>
+
+                <div class="tags-wrap">
+                    @foreach (var tag in PredefinedTags)
+                    {
+                        <button type="button"
+                                class="tag-pill @(SelectedTags.Contains(tag) ? "tag-pill-selected" : "")"
+                                @onclick="() => ToggleTag(tag)">
+                            @tag
+                        </button>
+                    }
+                </div>
+
+                <label class="panel-label" style="margin-top:10px">New tag</label>
+                <div class="tag-add-row">
+                    <input class="form-control" placeholder="e.g. Gym" @bind="CustomTag" />
+                    <button type="button" class="btn btn-secondary" @onclick="AddCustomTag">Add</button>
+                </div>
+            </div>
+
+        </aside>
+    </div>
 </div>
 
 @code {
     [Parameter] public string? dateString { get; set; }
+
+    private readonly string EditorTextAreaId = "journalEditorText";
 
     private JournalEntry Entry = new();
     private string? Message;
@@ -122,10 +160,6 @@
 
     private bool IsPreview = false;
     private string RenderedHtml = "";
-
-    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .Build();
 
     private readonly List<string> MoodOptions = new()
     {
@@ -139,7 +173,7 @@
         "Work", "Study", "Health", "Family", "Travel"
     };
 
-    private HashSet<string> SelectedTags = new();
+    private HashSet<string> SelectedTags = new(StringComparer.OrdinalIgnoreCase);
     private string CustomTag = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -162,6 +196,7 @@
                 SelectedTags = Entry.Tags
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(t => t.Trim())
+                    .Where(t => t.Length > 0)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -177,28 +212,46 @@
 
         if (IsPreview)
         {
-            RenderedHtml = Markdown.ToHtml(Entry.Content ?? "", _pipeline);
+            var pipeline = new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()
+                .Build();
+
+            RenderedHtml = Markdown.ToHtml(Entry.Content ?? "", pipeline);
         }
     }
 
-    private void InsertMd(string snippet)
+    // === NEW: selection-based formatting via JS ===
+    private async Task WrapSelection(string left, string right)
     {
-        if (string.IsNullOrWhiteSpace(Entry.Content))
-            Entry.Content = snippet;
-        else
-            Entry.Content += "\n" + snippet;
+        var newValue = await JS.InvokeAsync<string?>("journalEditor.wrapSelection", EditorTextAreaId, left, right);
+        if (newValue is not null)
+            Entry.Content = newValue;
+    }
 
-        // If user is in preview mode, refresh preview instantly
-        if (IsPreview)
-        {
-            RenderedHtml = Markdown.ToHtml(Entry.Content ?? "", _pipeline);
-        }
+    private async Task InsertLine(string text)
+    {
+        var newValue = await JS.InvokeAsync<string?>("journalEditor.insertLine", EditorTextAreaId, text);
+        if (newValue is not null)
+            Entry.Content = newValue;
+    }
+
+    private async Task InsertLink()
+    {
+        // Put a link template around selection if selected, else inserts template.
+        await WrapSelection("[", "](https://example.com)");
     }
 
     private void ToggleTag(string tag)
     {
         if (!SelectedTags.Add(tag))
             SelectedTags.Remove(tag);
+    }
+
+    private void AddCustomTag()
+    {
+        if (string.IsNullOrWhiteSpace(CustomTag)) return;
+        SelectedTags.Add(CustomTag.Trim());
+        CustomTag = string.Empty;
     }
 
     private async Task SaveEntry()
@@ -249,18 +302,12 @@
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(CustomTag))
-        {
-            SelectedTags.Add(CustomTag.Trim());
-        }
-
         Entry.Tags = string.Join(", ", SelectedTags);
 
         await JournalService.SaveAsync(Entry);
 
         MessageClass = "alert-success";
         Message = "Journal entry saved successfully.";
-        CustomTag = string.Empty;
     }
 
     private async Task DeleteEntry()

@@ -444,3 +444,162 @@ label {
 .theme-light .cardtitle {
     color: rgba(0,0,0,0.65);
 }
+/* ===== Journal Editor - Full Page Layout ===== */
+.editor-shell {
+    max-width: 1200px;
+}
+
+.editor-title {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 6px 0 14px;
+}
+
+.editor-alert {
+    max-width: 900px;
+    margin-bottom: 14px;
+}
+
+.editor-topbar {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.editor-top-left {
+    flex: 1;
+    min-width: 520px;
+}
+
+.editor-label {
+    color: rgba(234,234,240,0.70);
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.editor-title-input {
+    font-size: 16px;
+}
+
+.editor-date {
+    margin-top: 8px;
+    color: rgba(234,234,240,0.60);
+    font-size: 13px;
+}
+
+.editor-top-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding-top: 22px;
+}
+
+.editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 18px;
+    align-items: start;
+}
+
+.editor-left {
+    min-height: 540px;
+}
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.toolbtn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    color: #eaeaf0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+    .toolbtn:hover {
+        background: rgba(255,255,255,0.08);
+    }
+
+.toolicon {
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.toolspacer {
+    flex: 1;
+}
+
+.editor-preview-btn {
+    border-radius: 12px;
+    padding: 8px 14px;
+}
+
+.editor-textarea {
+    min-height: 520px;
+    font-size: 15px;
+    line-height: 1.45;
+    padding: 14px;
+    border-radius: 14px;
+}
+
+.editor-preview {
+    min-height: 520px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    padding: 14px;
+    overflow: auto;
+}
+
+/* Right panel boxes */
+.panelbox {
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03);
+    padding: 14px;
+}
+
+.paneltitle {
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.panel-label {
+    margin-top: 10px;
+    color: rgba(234,234,240,0.70);
+    font-weight: 600;
+}
+
+.req {
+    color: #ff4b4b;
+}
+
+.tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.tag-add-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
