@@ -1,6 +1,7 @@
 ﻿@page "/dashboard"
 @using JournalApp.Models
 @inject JournalApp.Services.JournalService JournalService
+@inject IJSRuntime JS
 
 <h3>Dashboard</h3>
 
@@ -32,92 +33,44 @@ else
         </div>
     </div>
 
-    <div style="display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start">
-
-        <div style="flex:1; min-width:340px; max-width:520px">
-            <h5>Mood Distribution</h5>
-
-            @if (MoodStats.Count == 0)
-            {
-                <p>No mood data yet</p>
-            }
-            else
-            {
-                @foreach (var m in MoodStats)
-                {
-                    <div style="margin-bottom:10px">
-                        <div style="display:flex; justify-content:space-between; font-size:14px">
-                            <span>@m.Mood</span>
-                            <span>@m.Count (@m.Percent%)</span>
-                        </div>
-
-                        <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
-                            <div style="height:100%; width:@(m.Percent)%; background:rgba(122, 92, 255, 0.75)"></div>
-                        </div>
-                    </div>
-                }
-
-                <div style="margin-top:8px">
-                    <b>Most Frequent Mood:</b>
-                    @(string.IsNullOrWhiteSpace(MostFrequentMood) ? "No data yet" : MostFrequentMood)
-                </div>
-            }
+    <div style="max-width:1000px; display:grid; grid-template-columns: 1fr 1fr; gap:18px;">
+        <div class="cardbox" style="width:auto; padding:16px;">
+            <h5>Mood Distribution (Primary Mood)</h5>
+            <canvas id="moodPie"></canvas>
         </div>
 
-        <div style="flex:1; min-width:340px; max-width:520px">
+        <div class="cardbox" style="width:auto; padding:16px;">
             <h5>Most Used Tags</h5>
-
-            @if (TopTags.Count == 0)
-            {
-                <p>No tags yet</p>
-            }
-            else
-            {
-                @foreach (var t in TopTags)
-                {
-                    <div style="margin-bottom:10px">
-                        <div style="display:flex; justify-content:space-between; font-size:14px">
-                            <span>@t.Tag</span>
-                            <span>@t.Count</span>
-                        </div>
-
-                        <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
-                            <div style="height:100%; width:@(t.Percent)%; background:rgba(255, 255, 255, 0.35)"></div>
-                        </div>
-                    </div>
-                }
-            }
+            <canvas id="tagsBar"></canvas>
         </div>
 
+        <div class="cardbox" style="grid-column: 1 / -1; width:auto; padding:16px;">
+            <h5>Word Count Trend (Last 7 Days)</h5>
+            <canvas id="wordTrend"></canvas>
+        </div>
     </div>
 
-    <div style="margin-top:22px; max-width:900px">
-        <h5>Word Count Trend (Last 7 Days)</h5>
+    <div style="max-width:900px; margin-top:18px">
+        <h5>Most Frequent Mood</h5>
+        <p>@(string.IsNullOrWhiteSpace(MostFrequentMood) ? "No data yet" : MostFrequentMood)</p>
 
-        @if (WordTrend.Count == 0)
+        <h5>Top Tags (Text)</h5>
+        @if (TopTags.Count == 0)
         {
-            <p>No entries in the last 7 days</p>
+            <p>No tags yet</p>
         }
         else
         {
-            <div style="margin-bottom:10px">
-                <b>Average words:</b> @AvgWordsLast7
-            </div>
-
-            @foreach (var w in WordTrend.OrderBy(x => x.Date))
-            {
-                <div style="margin-bottom:10px">
-                    <div style="display:flex; justify-content:space-between; font-size:14px">
-                        <span>@w.Date.ToString("yyyy-MM-dd")</span>
-                        <span>@w.Words words</span>
-                    </div>
-
-                    <div style="height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); overflow:hidden">
-                        <div style="height:100%; width:@(w.Percent)%; background:rgba(122, 92, 255, 0.45)"></div>
-                    </div>
-                </div>
-            }
+            <ul>
+                @foreach (var t in TopTags)
+                {
+                    <li>@t.Tag (@t.Count)</li>
+                }
+            </ul>
         }
+
+        <h5>Average Words (Last 7 Days)</h5>
+        <p>@AvgWordsLast7</p>
     </div>
 }
 
@@ -132,9 +85,23 @@ else
     private string MostFrequentMood = "";
     private int AvgWordsLast7;
 
-    private List<MoodStat> MoodStats = new();
-    private List<TagStat> TopTags = new();
-    private List<WordStat> WordTrend = new();
+    private List<TagCount> TopTags = new();
+
+    // Chart data
+    private List<MoodBucket> MoodBuckets = new();
+    private List<WordPoint> WordTrend = new();
+
+    private bool _chartsRendered = false;
+
+    // Mood categories (simple + viva-friendly)
+    private readonly HashSet<string> PositiveMoods = new(StringComparer.OrdinalIgnoreCase)
+    { "Happy", "Excited", "Relaxed", "Grateful", "Confident" };
+
+    private readonly HashSet<string> NeutralMoods = new(StringComparer.OrdinalIgnoreCase)
+    { "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored", "Okay", "Focused" };
+
+    private readonly HashSet<string> NegativeMoods = new(StringComparer.OrdinalIgnoreCase)
+    { "Sad", "Angry", "Stressed", "Lonely", "Anxious" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,12 +112,42 @@ else
 
         CalculateStreaks(all);
         CalculateMissedDaysLast30(all);
-
-        CalculateMoodDistribution(all);
+        CalculateMostFrequentMood(all);
         CalculateTopTags(all);
-        await CalculateWordTrendLast7();
+        await CalculateAvgWordsAndWordTrendLast7();
+        CalculateMoodDistributionBuckets(all);
 
         IsLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsLoading) return;
+
+        // Render charts once AFTER the canvases exist in the UI
+        if (!_chartsRendered)
+        {
+            _chartsRendered = true;
+            await RenderCharts();
+        }
+    }
+
+    private async Task RenderCharts()
+    {
+        // 1) Mood bucket pie
+        var moodLabels = MoodBuckets.Select(x => x.Name).ToArray();
+        var moodValues = MoodBuckets.Select(x => x.Count).ToArray();
+        await JS.InvokeVoidAsync("journalCharts.renderMoodPie", "moodPie", moodLabels, moodValues);
+
+        // 2) Tags bar
+        var tagLabels = TopTags.Select(x => x.Tag).ToArray();
+        var tagValues = TopTags.Select(x => x.Count).ToArray();
+        await JS.InvokeVoidAsync("journalCharts.renderTagsBar", "tagsBar", tagLabels, tagValues);
+
+        // 3) Word trend
+        var wordLabels = WordTrend.Select(x => x.Label).ToArray();
+        var wordValues = WordTrend.Select(x => x.Words).ToArray();
+        await JS.InvokeVoidAsync("journalCharts.renderWordTrend", "wordTrend", wordLabels, wordValues);
     }
 
     private void CalculateStreaks(List<JournalEntry> all)
@@ -185,9 +182,10 @@ else
         var today = DateOnly.FromDateTime(DateTime.Today);
         int current = 0;
 
-        var set = dates.ToHashSet();
-        while (set.Contains(today.AddDays(-current)))
+        while (dates.Contains(today.AddDays(-current)))
+        {
             current++;
+        }
 
         CurrentStreak = current;
     }
@@ -210,34 +208,14 @@ else
         MissedDaysCount = missed;
     }
 
-    private void CalculateMoodDistribution(List<JournalEntry> all)
+    private void CalculateMostFrequentMood(List<JournalEntry> all)
     {
-        var groups = all
+        MostFrequentMood = all
             .Where(e => !string.IsNullOrWhiteSpace(e.PrimaryMood))
             .GroupBy(e => e.PrimaryMood.Trim())
-            .Select(g => new { Mood = g.Key, Count = g.Count() })
-            .OrderByDescending(x => x.Count)
-            .ToList();
-
-        if (groups.Count == 0)
-        {
-            MoodStats = new();
-            MostFrequentMood = "";
-            return;
-        }
-
-        int total = groups.Sum(x => x.Count);
-
-        MoodStats = groups
-            .Select(x => new MoodStat
-            {
-                Mood = x.Mood,
-                Count = x.Count,
-                Percent = total == 0 ? 0 : (int)Math.Round((x.Count * 100.0) / total)
-            })
-            .ToList();
-
-        MostFrequentMood = groups.First().Mood;
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault() ?? "";
     }
 
     private void CalculateTopTags(List<JournalEntry> all)
@@ -259,21 +237,14 @@ else
             }
         }
 
-        var list = dict
+        TopTags = dict
             .OrderByDescending(kv => kv.Value)
             .Take(8)
-            .Select(kv => new TagStat { Tag = kv.Key, Count = kv.Value })
+            .Select(kv => new TagCount { Tag = kv.Key, Count = kv.Value })
             .ToList();
-
-        int max = list.Count == 0 ? 0 : list.Max(x => x.Count);
-
-        foreach (var t in list)
-            t.Percent = max == 0 ? 0 : (int)Math.Round((t.Count * 100.0) / max);
-
-        TopTags = list;
     }
 
-    private async Task CalculateWordTrendLast7()
+    private async Task CalculateAvgWordsAndWordTrendLast7()
     {
         var end = DateOnly.FromDateTime(DateTime.Today);
         var start = end.AddDays(-6);
@@ -283,27 +254,69 @@ else
         if (range.Count == 0)
         {
             AvgWordsLast7 = 0;
-            WordTrend = new();
+            WordTrend = BuildEmptyWeekTrend(start);
             return;
         }
 
-        var byDay = range
-            .GroupBy(e => e.EntryDate)
-            .Select(g => new WordStat
+        // Build per-day word counts (even for days with no entries -> 0)
+        var map = range.ToDictionary(x => x.EntryDate, x => CountWords(x.Content));
+
+        WordTrend = new List<WordPoint>();
+        int totalWords = 0;
+        int daysWithEntries = 0;
+
+        for (int i = 0; i < 7; i++)
+        {
+            var d = start.AddDays(i);
+            map.TryGetValue(d, out int words);
+
+            WordTrend.Add(new WordPoint
             {
-                Date = g.Key,
-                Words = CountWords(g.First().Content)
-            })
-            .ToList();
+                Label = d.ToString("MM-dd"),
+                Words = words
+            });
 
-        int totalWords = byDay.Sum(x => x.Words);
-        AvgWordsLast7 = totalWords / byDay.Count;
+            if (words > 0)
+            {
+                totalWords += words;
+                daysWithEntries++;
+            }
+        }
 
-        int max = byDay.Max(x => x.Words);
-        foreach (var w in byDay)
-            w.Percent = max == 0 ? 0 : (int)Math.Round((w.Words * 100.0) / max);
+        AvgWordsLast7 = daysWithEntries == 0 ? 0 : totalWords / daysWithEntries;
+    }
 
-        WordTrend = byDay;
+    private List<WordPoint> BuildEmptyWeekTrend(DateOnly start)
+    {
+        var list = new List<WordPoint>();
+        for (int i = 0; i < 7; i++)
+        {
+            var d = start.AddDays(i);
+            list.Add(new WordPoint { Label = d.ToString("MM-dd"), Words = 0 });
+        }
+        return list;
+    }
+
+    private void CalculateMoodDistributionBuckets(List<JournalEntry> all)
+    {
+        int pos = 0, neu = 0, neg = 0;
+
+        foreach (var e in all)
+        {
+            var mood = e.PrimaryMood?.Trim();
+            if (string.IsNullOrWhiteSpace(mood)) continue;
+
+            if (PositiveMoods.Contains(mood)) pos++;
+            else if (NegativeMoods.Contains(mood)) neg++;
+            else neu++; // anything else goes to neutral
+        }
+
+        MoodBuckets = new List<MoodBucket>
+        {
+            new MoodBucket { Name = "Positive", Count = pos },
+            new MoodBucket { Name = "Neutral", Count = neu },
+            new MoodBucket { Name = "Negative", Count = neg }
+        };
     }
 
     private int CountWords(string? text)
@@ -314,24 +327,21 @@ else
                           StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
-    private class MoodStat
-    {
-        public string Mood { get; set; } = "";
-        public int Count { get; set; }
-        public int Percent { get; set; }
-    }
-
-    private class TagStat
+    private class TagCount
     {
         public string Tag { get; set; } = "";
         public int Count { get; set; }
-        public int Percent { get; set; }
     }
 
-    private class WordStat
+    private class MoodBucket
     {
-        public DateOnly Date { get; set; }
+        public string Name { get; set; } = "";
+        public int Count { get; set; }
+    }
+
+    private class WordPoint
+    {
+        public string Label { get; set; } = "";
         public int Words { get; set; }
-        public int Percent { get; set; }
     }
 }
