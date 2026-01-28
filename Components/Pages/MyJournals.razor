@@ -31,6 +31,7 @@ else
 
             <select class="form-control" style="width:110px; display:inline-block; margin-left:12px;"
                     @bind="pageSize" @bind:after="OnPageSizeChanged">
+                @* Triggers data reload when size changes *@
                 <option value="5">5</option>
                 <option value="10">10</option>
                 <option value="15">15</option>
@@ -57,10 +58,7 @@ else
                     <td>@e.PrimaryMood</td>
                     <td>@e.Tags</td>
                     <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => EditEntry(e.EntryDate)">
-                            Edit
-                        </button>
-
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditEntry(e.EntryDate)">Edit</button>
                         <button class="btn btn-danger btn-sm" style="margin-left:8px"
                                 @onclick="() => DeleteEntry(e.EntryDate)">
                             Del
@@ -80,23 +78,23 @@ else
     private int pageSize = 5;
     private int totalPages = 1;
 
-    private bool CanPrev => currentPage > 1;
+    private bool CanPrev => currentPage > 1;      // Boundary check for pagination
     private bool CanNext => currentPage < totalPages;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadPageAsync();
+        await LoadPageAsync(); // Initial page fetch
     }
 
     private async Task LoadPageAsync()
     {
         totalCount = await JournalService.GetCountAsync();
-        totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize)); // Page count calculation
 
         if (currentPage > totalPages)
             currentPage = totalPages;
 
-        entries = await JournalService.GetPageAsync(currentPage, pageSize);
+        entries = await JournalService.GetPageAsync(currentPage, pageSize); // Server-side paging
     }
 
     private async Task NextPage()
@@ -115,18 +113,18 @@ else
 
     private async Task OnPageSizeChanged()
     {
-        currentPage = 1;
+        currentPage = 1; // Reset index after size change
         await LoadPageAsync();
     }
 
     private void EditEntry(DateOnly date)
     {
-        Nav.NavigateTo($"/editor/{date:yyyy-MM-dd}");
+        Nav.NavigateTo($"/editor/{date:yyyy-MM-dd}"); // Date-based routing
     }
 
     private async Task DeleteEntry(DateOnly date)
     {
         await JournalService.DeleteAsync(date);
-        await LoadPageAsync();
+        await LoadPageAsync(); // Refresh after delete
     }
 }

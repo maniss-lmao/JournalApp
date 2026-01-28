@@ -4,29 +4,32 @@
 @implements IDisposable
 
 <div class="page @Theme.ThemeClass">
+    @* Apply current theme class to the layout *@
     <div class="sidebar">
+        @* Persistent navigation sidebar *@
         <NavMenu />
     </div>
 
     <main>
         <article class="content px-4">
+            @* Renders page-specific content *@
             @Body
         </article>
     </main>
 </div>
 
 @code {
-    protected override void OnInitialized()
+    protected override void OnInitialized() // Subscribe to theme change events
     {
         Theme.OnChange += ThemeChanged;
     }
 
-    private void ThemeChanged()
+    private void ThemeChanged() // Refresh UI when theme changes
     {
         InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose()
+    public void Dispose() // Unsubscribe to avoid memory leaks
     {
         Theme.OnChange -= ThemeChanged;
     }

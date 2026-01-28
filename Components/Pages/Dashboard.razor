@@ -5,13 +5,14 @@
 
 <h3>Dashboard</h3>
 
-@if (IsLoading)
+@if (IsLoading) @* Simple loading state while stats are calculated *@
 {
     <p>Loading...</p>
 }
 else
 {
     <div style="display:flex; flex-wrap:wrap; gap:14px; margin-bottom:18px">
+        @* Summary cards row *@
         <div class="cardbox">
             <div class="cardtitle">Total Entries</div>
             <div class="cardvalue">@TotalEntries</div>
@@ -34,28 +35,30 @@ else
     </div>
 
     <div style="max-width:1000px; display:grid; grid-template-columns: 1fr 1fr; gap:18px;">
+        @* Chart layout grid *@
         <div class="cardbox" style="width:auto; padding:16px;">
             <h5>Mood Distribution (Primary Mood)</h5>
-            <canvas id="moodPie"></canvas>
+            <canvas id="moodPie"></canvas> @* JS draws chart into this canvas *@
         </div>
 
         <div class="cardbox" style="width:auto; padding:16px;">
             <h5>Most Used Tags</h5>
-            <canvas id="tagsBar"></canvas>
+            <canvas id="tagsBar"></canvas> @* JS draws chart into this canvas *@
         </div>
 
         <div class="cardbox" style="grid-column: 1 / -1; width:auto; padding:16px;">
             <h5>Word Count Trend (Last 7 Days)</h5>
-            <canvas id="wordTrend"></canvas>
+            <canvas id="wordTrend"></canvas> @* JS draws chart into this canvas *@
         </div>
     </div>
 
     <div style="max-width:900px; margin-top:18px">
+        @* Extra text insights section *@
         <h5>Most Frequent Mood</h5>
         <p>@(string.IsNullOrWhiteSpace(MostFrequentMood) ? "No data yet" : MostFrequentMood)</p>
 
         <h5>Top Tags (Text)</h5>
-        @if (TopTags.Count == 0)
+        @if (TopTags.Count == 0) @* Only show list when tags exist *@
         {
             <p>No tags yet</p>
         }
@@ -75,56 +78,47 @@ else
 }
 
 @code {
-    private bool IsLoading = true;
+    private bool IsLoading = true; // Controls loading state
 
-    private int TotalEntries;
-    private int CurrentStreak;
-    private int LongestStreak;
-    private int MissedDaysCount;
+    private int TotalEntries; // Total saved journal entries
+    private int CurrentStreak; // Consecutive days up to today
+    private int LongestStreak; // Best streak ever achieved
+    private int MissedDaysCount; // Missing days in last 30
 
-    private string MostFrequentMood = "";
-    private int AvgWordsLast7;
+    private string MostFrequentMood = ""; // Mood that appears most often
+    private int AvgWordsLast7; // Average words across last 7 days (days with entries)
 
-    private List<TagCount> TopTags = new();
+    private List<TagCount> TopTags = new(); // Tag ranking for display
 
-    // Chart data
-    private List<MoodBucket> MoodBuckets = new();
-    private List<WordPoint> WordTrend = new();
+    private List<MoodBucket> MoodBuckets = new(); // Pie chart buckets
+    private List<WordPoint> WordTrend = new(); // Line chart points
 
-    private bool _chartsRendered = false;
+    private bool _chartsRendered = false; // Prevent re-drawing charts repeatedly
 
-    // Mood categories 
-    private readonly HashSet<string> PositiveMoods = new(StringComparer.OrdinalIgnoreCase)
-    { "Happy", "Excited", "Relaxed", "Grateful", "Confident" };
+    private readonly HashSet<string> PositiveMoods = new(StringComparer.OrdinalIgnoreCase) { "Happy", "Excited", "Relaxed", "Grateful", "Confident" }; // Known positives
+    private readonly HashSet<string> NeutralMoods = new(StringComparer.OrdinalIgnoreCase) { "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored", "Okay", "Focused" }; // Known neutrals
+    private readonly HashSet<string> NegativeMoods = new(StringComparer.OrdinalIgnoreCase) { "Sad", "Angry", "Stressed", "Lonely", "Anxious" }; // Known negatives
 
-    private readonly HashSet<string> NeutralMoods = new(StringComparer.OrdinalIgnoreCase)
-    { "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored", "Okay", "Focused" };
-
-    private readonly HashSet<string> NegativeMoods = new(StringComparer.OrdinalIgnoreCase)
-    { "Sad", "Angry", "Stressed", "Lonely", "Anxious" };
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() // Load data and calculate dashboard metrics
     {
         IsLoading = true;
 
-        var all = await JournalService.GetAllAsync();
+        var all = await JournalService.GetAllAsync(); // Fetch entries from storage
         TotalEntries = all.Count;
 
-        CalculateStreaks(all);
-        CalculateMissedDaysLast30(all);
-        CalculateMostFrequentMood(all);
-        CalculateTopTags(all);
-        await CalculateAvgWordsAndWordTrendLast7();
-        CalculateMoodDistributionBuckets(all);
+        CalculateStreaks(all); // Current + longest streak
+        CalculateMissedDaysLast30(all); // Missed day count
+        CalculateMostFrequentMood(all); // Frequent mood
+        CalculateTopTags(all); // Most common tags
+        await CalculateAvgWordsAndWordTrendLast7(); // Avg words + chart points
+        CalculateMoodDistributionBuckets(all); // Positive/neutral/negative buckets
 
         IsLoading = false;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender) // Draw charts after canvases exist
     {
         if (IsLoading) return;
-
-        // Render charts once AFTER the canvases exist in the UI
         if (!_chartsRendered)
         {
             _chartsRendered = true;
@@ -132,25 +126,22 @@ else
         }
     }
 
-    private async Task RenderCharts()
+    private async Task RenderCharts() // Sends prepared arrays to JS chart helpers
     {
-        // 1) Mood bucket pie
-        var moodLabels = MoodBuckets.Select(x => x.Name).ToArray();
-        var moodValues = MoodBuckets.Select(x => x.Count).ToArray();
-        await JS.InvokeVoidAsync("journalCharts.renderMoodPie", "moodPie", moodLabels, moodValues);
+        var moodLabels = MoodBuckets.Select(x => x.Name).ToArray(); // Pie labels
+        var moodValues = MoodBuckets.Select(x => x.Count).ToArray(); // Pie values
+        await JS.InvokeVoidAsync("journalCharts.renderMoodPie", "moodPie", moodLabels, moodValues); // Render mood pie
 
-        // 2) Tags bar
-        var tagLabels = TopTags.Select(x => x.Tag).ToArray();
-        var tagValues = TopTags.Select(x => x.Count).ToArray();
-        await JS.InvokeVoidAsync("journalCharts.renderTagsBar", "tagsBar", tagLabels, tagValues);
+        var tagLabels = TopTags.Select(x => x.Tag).ToArray(); // Bar labels
+        var tagValues = TopTags.Select(x => x.Count).ToArray(); // Bar values
+        await JS.InvokeVoidAsync("journalCharts.renderTagsBar", "tagsBar", tagLabels, tagValues); // Render tags bar
 
-        // 3) Word trend
-        var wordLabels = WordTrend.Select(x => x.Label).ToArray();
-        var wordValues = WordTrend.Select(x => x.Words).ToArray();
-        await JS.InvokeVoidAsync("journalCharts.renderWordTrend", "wordTrend", wordLabels, wordValues);
+        var wordLabels = WordTrend.Select(x => x.Label).ToArray(); // Trend labels
+        var wordValues = WordTrend.Select(x => x.Words).ToArray(); // Trend values
+        await JS.InvokeVoidAsync("journalCharts.renderWordTrend", "wordTrend", wordLabels, wordValues); // Render word trend
     }
 
-    private void CalculateStreaks(List<JournalEntry> all)
+    private void CalculateStreaks(List<JournalEntry> all) // Finds current + longest consecutive-day streaks
     {
         if (all.Count == 0)
         {
@@ -159,56 +150,44 @@ else
             return;
         }
 
-        var dates = all.Select(e => e.EntryDate)
-                       .Distinct()
-                       .OrderBy(d => d)
-                       .ToList();
+        var dates = all.Select(e => e.EntryDate).Distinct().OrderBy(d => d).ToList(); // Unique ordered dates
 
         int best = 1;
         int run = 1;
 
         for (int i = 1; i < dates.Count; i++)
         {
-            if (dates[i] == dates[i - 1].AddDays(1))
-                run++;
-            else
-                run = 1;
-
-            if (run > best) best = run;
+            if (dates[i] == dates[i - 1].AddDays(1)) run++; else run = 1; // Reset when gap exists
+            if (run > best) best = run; // Track best run
         }
 
         LongestStreak = best;
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateOnly.FromDateTime(DateTime.Today); // Start from today
         int current = 0;
 
-        while (dates.Contains(today.AddDays(-current)))
-        {
-            current++;
-        }
-
+        while (dates.Contains(today.AddDays(-current))) current++; // Count backwards until break
         CurrentStreak = current;
     }
 
-    private void CalculateMissedDaysLast30(List<JournalEntry> all)
+    private void CalculateMissedDaysLast30(List<JournalEntry> all) // Counts empty days over last 30 days window
     {
         var end = DateOnly.FromDateTime(DateTime.Today);
         var start = end.AddDays(-29);
 
-        var dateSet = all.Select(e => e.EntryDate).ToHashSet();
+        var dateSet = all.Select(e => e.EntryDate).ToHashSet(); // Fast lookup for entry dates
 
         int missed = 0;
         for (int i = 0; i < 30; i++)
         {
             var d = start.AddDays(i);
-            if (!dateSet.Contains(d))
-                missed++;
+            if (!dateSet.Contains(d)) missed++;
         }
 
         MissedDaysCount = missed;
     }
 
-    private void CalculateMostFrequentMood(List<JournalEntry> all)
+    private void CalculateMostFrequentMood(List<JournalEntry> all) // Picks most common primary mood
     {
         MostFrequentMood = all
             .Where(e => !string.IsNullOrWhiteSpace(e.PrimaryMood))
@@ -218,7 +197,7 @@ else
             .FirstOrDefault() ?? "";
     }
 
-    private void CalculateTopTags(List<JournalEntry> all)
+    private void CalculateTopTags(List<JournalEntry> all) // Builds tag frequency list (top 8)
     {
         var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -226,10 +205,7 @@ else
         {
             if (string.IsNullOrWhiteSpace(e.Tags)) continue;
 
-            var tags = e.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                             .Select(t => t.Trim())
-                             .Where(t => t.Length > 0);
-
+            var tags = e.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim()).Where(t => t.Length > 0); // Parse comma tags
             foreach (var tag in tags)
             {
                 if (!dict.ContainsKey(tag)) dict[tag] = 0;
@@ -244,12 +220,12 @@ else
             .ToList();
     }
 
-    private async Task CalculateAvgWordsAndWordTrendLast7()
+    private async Task CalculateAvgWordsAndWordTrendLast7() // Builds 7-day trend + average words
     {
         var end = DateOnly.FromDateTime(DateTime.Today);
         var start = end.AddDays(-6);
 
-        var range = await JournalService.GetRangeAsync(start, end);
+        var range = await JournalService.GetRangeAsync(start, end); // Pull last 7 days only
 
         if (range.Count == 0)
         {
@@ -258,8 +234,7 @@ else
             return;
         }
 
-        // Build per-day word counts (even for days with no entries -> 0)
-        var map = range.ToDictionary(x => x.EntryDate, x => CountWords(x.Content));
+        var map = range.ToDictionary(x => x.EntryDate, x => CountWords(x.Content)); // Date -> word count
 
         WordTrend = new List<WordPoint>();
         int totalWords = 0;
@@ -270,11 +245,7 @@ else
             var d = start.AddDays(i);
             map.TryGetValue(d, out int words);
 
-            WordTrend.Add(new WordPoint
-            {
-                Label = d.ToString("MM-dd"),
-                Words = words
-            });
+            WordTrend.Add(new WordPoint { Label = d.ToString("MM-dd"), Words = words }); // Always include day (0 if missing)
 
             if (words > 0)
             {
@@ -283,10 +254,10 @@ else
             }
         }
 
-        AvgWordsLast7 = daysWithEntries == 0 ? 0 : totalWords / daysWithEntries;
+        AvgWordsLast7 = daysWithEntries == 0 ? 0 : totalWords / daysWithEntries; // Avoid dividing by 0
     }
 
-    private List<WordPoint> BuildEmptyWeekTrend(DateOnly start)
+    private List<WordPoint> BuildEmptyWeekTrend(DateOnly start) // Returns a flat 0-word trend when no data exists
     {
         var list = new List<WordPoint>();
         for (int i = 0; i < 7; i++)
@@ -297,7 +268,7 @@ else
         return list;
     }
 
-    private void CalculateMoodDistributionBuckets(List<JournalEntry> all)
+    private void CalculateMoodDistributionBuckets(List<JournalEntry> all) // Groups moods into 3 buckets for pie chart
     {
         int pos = 0, neu = 0, neg = 0;
 
@@ -308,7 +279,7 @@ else
 
             if (PositiveMoods.Contains(mood)) pos++;
             else if (NegativeMoods.Contains(mood)) neg++;
-            else neu++; // anything else goes to neutral
+            else neu++; // Anything else treated as neutral
         }
 
         MoodBuckets = new List<MoodBucket>
@@ -319,29 +290,28 @@ else
         };
     }
 
-    private int CountWords(string? text)
+    private int CountWords(string? text) // Rough word count using whitespace splitting
     {
         if (string.IsNullOrWhiteSpace(text)) return 0;
 
-        return text.Split(new char[] { ' ', '\n', '\r', '\t' },
-                          StringSplitOptions.RemoveEmptyEntries).Length;
+        return text.Split(new char[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
     private class TagCount
     {
-        public string Tag { get; set; } = "";
-        public int Count { get; set; }
+        public string Tag { get; set; } = ""; // Tag name
+        public int Count { get; set; } // Tag frequency
     }
 
     private class MoodBucket
     {
-        public string Name { get; set; } = "";
-        public int Count { get; set; }
+        public string Name { get; set; } = ""; // Bucket label
+        public int Count { get; set; } // Bucket size
     }
 
     private class WordPoint
     {
-        public string Label { get; set; } = "";
-        public int Words { get; set; }
+        public string Label { get; set; } = ""; // X-axis label (date)
+        public int Words { get; set; } // Y-axis value (word count)
     }
 }

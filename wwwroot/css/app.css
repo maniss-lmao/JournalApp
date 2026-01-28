@@ -385,9 +385,12 @@ label {
 }
 
 /*  Light Mode Fixes  */
+/* Light mode sidebar – clean white */
 .theme-light .sidebar {
-    background: linear-gradient(180deg, #e8eafe 0%, #f4e7ff 100%);
+    background: #ffffff !important;
+    border-right: 1px solid rgba(0,0,0,0.10);
 }
+
 
 .theme-light .top-row {
     border-bottom: 1px solid rgba(0,0,0,0.08) !important;
@@ -628,3 +631,93 @@ label {
     gap: 10px;
     margin-top: 8px;
 }
+/* -----------------------------
+   Light Mode readability fixes
+   (Editor + Right panel)
+--------------------------------*/
+
+.theme-light .editor-topbar {
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+}
+
+.theme-light .editor-label,
+.theme-light .editor-date,
+.theme-light .panel-label,
+.theme-light label {
+    color: rgba(0,0,0,0.70) !important;
+}
+
+.theme-light .editor-toolbar {
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.10);
+}
+
+.theme-light .toolbtn {
+    background: rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.12);
+    color: #12131a;
+}
+
+    .theme-light .toolbtn:hover {
+        background: rgba(0,0,0,0.07);
+    }
+
+.theme-light .editor-preview {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.12);
+    color: #12131a;
+}
+
+.theme-light .panelbox {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.12);
+    color: #12131a;
+}
+
+.theme-light .paneltitle {
+    color: #12131a;
+}
+/* -----------------------------
+   Sidebar/Nav theme styling
+--------------------------------*/
+
+.sidebar .nav-link,
+.sidebar a {
+    color: rgba(255,255,255,0.80) !important;
+}
+
+    .sidebar .nav-link.active {
+        color: #ffffff !important;
+        font-weight: 800;
+    }
+
+.theme-light .sidebar .nav-link,
+.theme-light .sidebar a {
+    color: rgba(0,0,0,0.70) !important;
+}
+
+    .theme-light .sidebar .nav-link.active {
+        color: #12131a !important;
+        font-weight: 800;
+    }
+.sidebar .nav-link.active {
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+}
+
+.theme-light .sidebar .nav-link.active {
+    background: rgba(0,0,0,0.06);
+}
+
+
+/* Light mode background */
+.theme-light .top-row {
+    background: #ffffff !important;
+    border-bottom: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+    /* Light mode text */
+    .theme-light .top-row .navbar-brand {
+        color: #12131a !important;
+        font-weight: 700;
+    }

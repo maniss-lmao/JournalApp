@@ -13,7 +13,7 @@
 <div style="max-width:450px">
     @if (!string.IsNullOrWhiteSpace(Username))
     {
-        <p>Welcome, <b>@Username</b></p>
+        <p>Welcome, <b>@Username</b></p> @* Personalised unlock screen *@
     }
 
     <label>Enter PIN / Password</label>
@@ -32,8 +32,6 @@
     <button class="btn btn-secondary" @onclick="ResetAccount">
         Reset Account
     </button>
-
-
 </div>
 
 @code {
@@ -44,14 +42,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // If there is no PIN yet, go to setup
+        // Redirects to setup if no lock is configured
         if (!await LockService.HasPinAsync())
         {
             Nav.NavigateTo("/setup", true);
             return;
         }
 
-        Username = LockService.GetUsername();
+        Username = LockService.GetUsername(); // Retrieved for display only
     }
 
     private async Task Unlock_user()
@@ -65,7 +63,7 @@
             return;
         }
 
-        var ok = await LockService.VerifyPinAsync(Pin);
+        var ok = await LockService.VerifyPinAsync(Pin); // Secure verification
         if (!ok)
         {
             MessageClass = "alert-danger";
@@ -73,24 +71,25 @@
             return;
         }
 
-        AppState.SetUnlocked(string.IsNullOrWhiteSpace(Username) ? "User" : Username);
+        AppState.SetUnlocked(string.IsNullOrWhiteSpace(Username) ? "User" : Username); // Session unlock
         Nav.NavigateTo("/editor", true);
     }
 
     private async Task ResetAll()
     {
-        await LockService.ResetAccountAsync();
+        await LockService.ResetAccountAsync(); // Full reset including PIN
         AppState.Lock();
         Nav.NavigateTo("/setup", true);
     }
+
     private void GoToResetVerify()
     {
-        Nav.NavigateTo("/reset-verify", true);
-    }
-    private async Task ResetAccount()
-    {
-        await LockService.ResetAccountAsync();
-        Nav.NavigateTo("/setup", true);
+        Nav.NavigateTo("/reset-verify", true); // Security question flow
     }
 
+    private async Task ResetAccount()
+    {
+        await LockService.ResetAccountAsync(); // Hard reset without verification
+        Nav.NavigateTo("/setup", true);
+    }
 }

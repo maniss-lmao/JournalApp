@@ -69,7 +69,7 @@
                     }
 
                     <div style="margin-top:8px;">
-                        @ShortText(e.Content, 160)
+                        @ShortText(e.Content, 160) @* Keeps result preview concise *@
                     </div>
                 </div>
             }
@@ -84,7 +84,6 @@
 @code {
     private string Query = string.Empty;
 
-    
     private DateTime? FromDate;
     private DateTime? ToDate;
 
@@ -97,7 +96,22 @@
     {
         Message = null;
 
-        
+        if (string.IsNullOrWhiteSpace(Query) && !FromDate.HasValue && !ToDate.HasValue)
+        {
+            MessageClass = "alert-danger";
+            Message = "Please type something to search.";
+            Results.Clear();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Query) && Query.Trim().Length < 4)
+        {
+            MessageClass = "alert-danger";
+            Message = "Please enter at least 4 characters to search.";
+            Results.Clear();
+            return;
+        }
+
         DateOnly? from = FromDate.HasValue ? DateOnly.FromDateTime(FromDate.Value) : null;
         DateOnly? to = ToDate.HasValue ? DateOnly.FromDateTime(ToDate.Value) : null;
 
@@ -109,7 +123,7 @@
             return;
         }
 
-        Results = await JournalService.SearchAsync(Query, from, to);
+        Results = await JournalService.SearchAsync(Query, from, to); // Keyword + optional date filter
 
         if (Results.Count == 0)
         {
@@ -136,7 +150,7 @@
     private static string ShortText(string text, int max)
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
-        var cleaned = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        var cleaned = text.Replace("\r", " ").Replace("\n", " ").Trim(); // Normalise preview text
         return cleaned.Length <= max ? cleaned : cleaned.Substring(0, max) + "...";
     }
 }

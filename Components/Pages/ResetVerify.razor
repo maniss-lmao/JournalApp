@@ -45,12 +45,11 @@
     {
         if (!await LockService.HasPinAsync())
         {
-            Nav.NavigateTo("/setup", true);
+            Nav.NavigateTo("/setup", true); // Redirect if no PIN exists
             return;
         }
 
-        if (!await LockService.HasSecurityQuestionsAsync()
-)
+        if (!await LockService.HasSecurityQuestionsAsync())
         {
             MessageClass = "alert-warning";
             Message = "Security questions are not set. Please set up your PIN again.";
@@ -68,7 +67,7 @@
             return;
         }
 
-        var ok = await LockService.VerifySecurityAnswersAsync(Answer1, Answer2);
+        var ok = await LockService.VerifySecurityAnswersAsync(Answer1, Answer2); // Server-side verification
         if (!ok)
         {
             MessageClass = "alert-danger";
@@ -76,17 +75,17 @@
             return;
         }
 
-        await LockService.ResetAccountAsync();
-        AppState.Lock();
+        await LockService.ResetAccountAsync(); // Clears PIN and related lock data
+        AppState.Lock(); // Forces fresh unlock flow
 
         MessageClass = "alert-success";
         Message = "Verified. Please set a new PIN.";
 
-        Nav.NavigateTo("/setup", true);
+        Nav.NavigateTo("/setup", true); // Redirect to PIN setup
     }
 
     private void GoBack()
     {
-        Nav.NavigateTo("/unlock", true);
+        Nav.NavigateTo("/unlock", true); // Return to unlock screen
     }
 }

@@ -30,7 +30,7 @@
     <h5>Security Questions (for reset)</h5>
 
     <label>Security Question 1</label>
-    <input class="form-control" value="@SecurityQuestion1" disabled />
+    <input class="form-control" value="@SecurityQuestion1" disabled /> @* Fixed question for consistency *@
 
     <br />
 
@@ -40,7 +40,7 @@
     <br />
 
     <label>Security Question 2</label>
-    <input class="form-control" value="@SecurityQuestion2" disabled />
+    <input class="form-control" value="@SecurityQuestion2" disabled /> @* Fixed question for consistency *@
 
     <br />
 
@@ -60,7 +60,7 @@
     private string ConfirmPin = "";
     private string? Message;
 
-    // Fixed questions reduce setup errors and make verification consistent
+    // Fixed questions reduce setup errors and simplify later verification
     private string SecurityQuestion1 = "What is your favourite food?";
     private string SecurityAnswer1 = "";
 
@@ -69,7 +69,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // If already configured, setup should not be shown again
+        // Prevents re-running setup once a PIN already exists
         if (await LockService.HasPinAsync())
         {
             Nav.NavigateTo("/unlock", true);
@@ -104,7 +104,7 @@
             return;
         }
 
-        LockService.SaveUsername(Username.Trim());
+        LockService.SaveUsername(Username.Trim()); // Stored separately for session use
         await LockService.SavePinAsync(Pin);
 
         await LockService.SaveSecurityQuestionsAsync(
@@ -114,7 +114,7 @@
             SecurityAnswer2
         );
 
-        // Mark session as unlocked after setup
+        // Marks the app as unlocked for the current session
         AppState.SetUnlocked(Username.Trim());
 
         Nav.NavigateTo("/editor", true);

@@ -5,35 +5,36 @@
 
 <div class="cal-wrap">
     <div class="cal-top">
-        <div class="cal-title">@MonthTitle</div>
+        <div class="cal-title">@MonthTitle</div> @* Displays current month *@
 
         <div style="display:flex; gap:10px; align-items:center">
-            <button class="btn btn-secondary" @onclick="PrevMonth">‹</button>
-            <button class="btn btn-secondary" @onclick="NextMonth">›</button>
+            <button class="btn btn-secondary" @onclick="PrevMonth">‹</button> @* Go to previous month *@
+            <button class="btn btn-secondary" @onclick="NextMonth">›</button> @* Go to next month *@
         </div>
     </div>
 
     <div class="cal-weekdays">
-        @foreach (var d in Weekdays)
+        @foreach (var d in Weekdays) @* Render weekday headers *@
         {
             <div style="text-align:center">@d</div>
         }
     </div>
 
     <div class="cal-grid">
-        @foreach (var cell in CalendarCells)
+        @foreach (var cell in CalendarCells) @* Render calendar cells *@
         {
             if (cell is null)
             {
-                <div class="cal-empty"></div>
+                <div class="cal-empty"></div> @* Empty cell for alignment *@
             }
             else
             {
-                var hasEntry = EntryDates.Contains(cell.Value);
+                var hasEntry = EntryDates.Contains(cell.Value); @* Check if entry exists *@
 
                 <button type="button"
                         class="cal-cell @(hasEntry ? "cal-has-entry" : "") @(SelectedDate == cell.Value ? "cal-selected" : "")"
                         @onclick="() => SelectDate(cell.Value)">
+                    @* Select date *@
                     <div class="cal-daynum">@cell.Value.Day</div>
                 </button>
             }
@@ -41,7 +42,7 @@
     </div>
 </div>
 
-@if (SelectedDate is not null)
+@if (SelectedDate is not null) @* Show modal when a date is selected *@
 {
     <div class="modal-backdrop" @onclick="CloseModal">
         <div class="modal-card" @onclick:stopPropagation="true">
@@ -52,7 +53,7 @@
                 <button type="button" class="modal-close" @onclick="CloseModal">×</button>
             </div>
 
-            @if (SelectedEntry is null)
+            @if (SelectedEntry is null) @* No journal entry for selected date *@
             {
                 <div class="modal-body">
                     <div class="modal-muted">No entries for this day.</div>
@@ -88,7 +89,6 @@
 
                     <div style="margin-top:16px">
                         <button type="button" class="btn btn-primary" @onclick="EditEntry">Edit</button>
-
                         <button type="button" class="btn btn-danger" style="margin-left:10px" @onclick="DeleteSelected">
                             Delete
                         </button>
@@ -100,22 +100,22 @@
 }
 
 @code {
-    private DateOnly CurrentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateOnly CurrentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1); // Tracks displayed month
 
-    private string MonthTitle => CurrentMonth.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy");
+    private string MonthTitle => CurrentMonth.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy"); // Month heading
 
-    private readonly string[] Weekdays = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+    private readonly string[] Weekdays = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }; // Week labels
 
-    private List<DateOnly?> CalendarCells = new();
-    private HashSet<DateOnly> EntryDates = new();
+    private List<DateOnly?> CalendarCells = new(); // Calendar grid cells
+    private HashSet<DateOnly> EntryDates = new(); // Dates with entries
 
-    private DateOnly? SelectedDate;
-    private JournalEntry? SelectedEntry;
+    private DateOnly? SelectedDate; // Currently selected date
+    private JournalEntry? SelectedEntry; // Entry for selected date
 
     protected override async Task OnInitializedAsync()
     {
-        BuildCalendarGrid();
-        await LoadMonth();
+        BuildCalendarGrid(); // Generate initial grid
+        await LoadMonth();   // Load entries for month
     }
 
     private void BuildCalendarGrid()
@@ -124,7 +124,6 @@
 
         var firstDay = CurrentMonth;
         int daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
-
         int startOffset = (int)firstDay.ToDateTime(TimeOnly.MinValue).DayOfWeek;
 
         for (int i = 0; i < startOffset; i++)
@@ -138,7 +137,7 @@
     {
         EntryDates.Clear();
 
-        var all = await JournalService.GetAllAsync();
+        var all = await JournalService.GetAllAsync(); // Fetch all entries
         foreach (var e in all)
         {
             if (e.EntryDate.Year == CurrentMonth.Year && e.EntryDate.Month == CurrentMonth.Month)
@@ -149,7 +148,7 @@
     private async Task SelectDate(DateOnly date)
     {
         SelectedDate = date;
-        SelectedEntry = await JournalService.GetByDateAsync(date);
+        SelectedEntry = await JournalService.GetByDateAsync(date); // Load entry for date
     }
 
     private void CloseModal()
@@ -161,28 +160,27 @@
     private void CreateEntry()
     {
         if (SelectedDate is null) return;
-        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}");
+        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}"); // Open editor
     }
 
     private void EditEntry()
     {
         if (SelectedDate is null) return;
-        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}");
+        Nav.NavigateTo($"/editor/{SelectedDate:yyyy-MM-dd}"); // Edit existing entry
     }
 
     private async Task DeleteSelected()
     {
         if (SelectedDate is null) return;
 
-        await JournalService.DeleteAsync(SelectedDate.Value);
-
+        await JournalService.DeleteAsync(SelectedDate.Value); // Delete entry
         await LoadMonth();
         CloseModal();
     }
 
     private async Task PrevMonth()
     {
-        CurrentMonth = CurrentMonth.AddMonths(-1);
+        CurrentMonth = CurrentMonth.AddMonths(-1); // Move back a month
         SelectedDate = null;
         SelectedEntry = null;
 
@@ -192,7 +190,7 @@
 
     private async Task NextMonth()
     {
-        CurrentMonth = CurrentMonth.AddMonths(1);
+        CurrentMonth = CurrentMonth.AddMonths(1); // Move forward a month
         SelectedDate = null;
         SelectedEntry = null;
 

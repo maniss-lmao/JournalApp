@@ -70,24 +70,28 @@
 </div>
 
 @code {
-    private DateTime FromDate = DateTime.Today.AddDays(-7);
-    private DateTime ToDate = DateTime.Today;
+    private DateTime FromDate = DateTime.Today.AddDays(-7); // Default export start
+    private DateTime ToDate = DateTime.Today;               // Default export end
 
-    private bool IsExporting;
+    private bool IsExporting; // Prevents duplicate exports
 
     private string? Message;
     private string MessageClass = "alert-success";
 
-    private string LastFilePath = "";
+    private string LastFilePath = ""; // Stores most recent PDF path
 
     private bool ShowHistory = false;
     private List<PdfItem> History = new();
 
     protected override void OnInitialized()
     {
-        LoadHistory();
+        LoadHistory(); // Load existing exported PDFs
     }
 
+    /*
+       Generates a PDF for the selected date range and saves it
+       to the app data directory using QuestPDF.
+    */
     private async Task ExportPdf()
     {
         Message = null;
@@ -99,7 +103,7 @@
             var from = DateOnly.FromDateTime(FromDate);
             var to = DateOnly.FromDateTime(ToDate);
 
-            // swap if user selects wrong order
+            // Swap dates if selected in reverse order
             if (to < from)
                 (from, to) = (to, from);
 
@@ -189,6 +193,9 @@
         await OpenPdf(LastFilePath);
     }
 
+    /*
+       Opens a selected PDF file using the system file launcher.
+    */
     private async Task OpenPdf(string path)
     {
         try
@@ -236,7 +243,6 @@
         }
         catch
         {
-            
         }
     }
 
